@@ -22,7 +22,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -235,7 +235,7 @@ def gather_mode(system_name: str, matches: list[dict]) -> None:
     print("Enter the in-game distance (ly) to each system (press Enter to skip).\n")
 
     rows = []
-    timestamp = datetime.now(datetime.UTC).isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     parsed = parse_system_name(system_name)
 
     for match in matches:

@@ -28,7 +28,8 @@ from pathlib import Path
 import requests
 
 EDSM_SYSTEMS_URL = "https://www.edsm.net/api-v1/systems"
-OUTPUT_FILE = "data/distance_data.csv"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+OUTPUT_FILE = REPO_ROOT / "data" / "distance_data.csv"
 REQUEST_DELAY = 0.5  # seconds between EDSM requests
 
 # Approximate boxel diameter in ly per mass code (community research, unverified)
@@ -234,7 +235,7 @@ def gather_mode(system_name: str, matches: list[dict]) -> None:
     print("Enter the in-game distance (ly) to each system (press Enter to skip).\n")
 
     rows = []
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(datetime.UTC).isoformat()
     parsed = parse_system_name(system_name)
 
     for match in matches:
@@ -267,16 +268,16 @@ def gather_mode(system_name: str, matches: list[dict]) -> None:
         print("\nNo data entered, nothing saved.")
         return
 
-    output_path = Path(OUTPUT_FILE)
-    file_exists = output_path.exists() and output_path.stat().st_size > 0
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = OUTPUT_FILE.exists() and OUTPUT_FILE.stat().st_size > 0
 
-    with open(output_path, "a", newline="") as f:
+    with open(OUTPUT_FILE, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         if not file_exists:
             writer.writeheader()
         writer.writerows(rows)
 
-    print(f"\nAppended {len(rows)} row(s) to {output_path.resolve()}")
+    print(f"\nAppended {len(rows)} row(s) to {OUTPUT_FILE}")
 
 
 def main():

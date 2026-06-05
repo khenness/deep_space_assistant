@@ -150,6 +150,7 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
         print("  Warning: could not parse as a procedural name — falling back to character prefix stripping")
 
     seen = {}  # system name -> result dict
+    api_calls = 0
 
     if parsed.is_procedural:
         levels_to_try = build_search_levels(parsed)
@@ -164,6 +165,7 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
         print(f"  [{level['label']}] Searching '{prefix}%' ...", end=" ", flush=True)
         time.sleep(REQUEST_DELAY)
         results = edsm_prefix_search(prefix)
+        api_calls += 1
         new_count = 0
 
         for r in results:
@@ -183,8 +185,10 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
         print(f"found {len(results)} systems ({new_count} new with coords)")
 
     if not seen:
-        print("\nNo known systems found.")
+        print(f"\nNo known systems found (using {api_calls} API calls).")
         return []
+
+    print(f"\nSearch complete using {api_calls} API call{'s' if api_calls != 1 else ''}.")
 
     # Within each match level, sort by sequence number proximity to the input system.
     # Hypothesis: nearby sequence numbers = nearby spatial position within a boxel.

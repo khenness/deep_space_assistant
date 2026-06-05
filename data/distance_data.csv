@@ -1,1 +1,6 @@
 timestamp,input_system,input_sector,input_boxel,input_mass_code,input_sequence,matched_system,match_level,search_prefix,sequence_distance,measured_distance_ly
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3665,sector+boxel+masscode,PHUA AUB RG-Y d36,13,73.47
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3601,sector+boxel+masscode,PHUA AUB RG-Y d36,77,73.67
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3774,sector+boxel+masscode,PHUA AUB RG-Y d3,96,79.14
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3810,sector+boxel+masscode,PHUA AUB RG-Y d3,132,57.25
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3922,sector+boxel+masscode,PHUA AUB RG-Y d3,244,59.98

@@ -123,3 +123,72 @@ After that: analyse the data. Does the algorithm work? How close are the results
 If it looks promising, we'll talk about what to build next. If it doesn't, we'll figure out why and adjust. Either way, we'll know something real instead of just having a theory.
 
 ---
+
+## Friday 5th June 2026 21:55 — First Real Data, From Deep Space
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### The Setup
+
+After building the script in the afternoon session, Kevin did what any good engineer does — he went and used the thing in the real world. His commander KevinFromDublin was already out in deep space aboard "Faster Than Light", an engineered Caspian Explorer capable of jumping 86.90 light years at a time. A single jump takes about 60 seconds. A light year is roughly 9.46 trillion kilometres. The ship covers that distance in a minute.
+
+Kevin plays on his TV with a laptop beside him. Alt-tabbing between the game and the terminal, typing in system names and distances manually, is genuinely tedious — but that's what science looks like sometimes.
+
+### The Journey
+
+Kevin started in the **Galactic Centre** region and rode the **Neutron Star Highway** toward Colonia. The highway is a network of neutron stars that can boost a ship's jump range by 6x — but it comes with risk. To get the boost, you fly directly into the neutron star's plasma cone in supercruise. Misjudge the approach and you hit the exclusion zone: the ship gets knocked out of supercruise, starts taking heat damage, and can explode. If that happens, every undiscovered system you've scanned is gone permanently. Your name won't appear on those systems. The credits are lost. Months of exploration, gone. High risk, high reward.
+
+Kevin navigated this using **EDCopilot**, a community navigation tool that was part of the inspiration for Deep Space Assistant.
+
+Along the way he found two ammonia worlds — rare, high-value planets with a yellowy-brown appearance — and scanned them. He also topped up his fuel tanks at a class G star. Veteran explorers know the acronym KGBFOAM for the star types that let you fuel scoop: K, G, B, F, O, A, M. The galaxy provides.
+
+After riding the highway for a while, Kevin branched off into unexplored space and arrived in the **Odin's Hold** region, where he took the final reading of the night before stopping. He's planning to continue toward Colonia tomorrow to visit engineers — NPCs who can upgrade and modify ship components.
+
+### The Data
+
+Kevin gathered five measurement sessions across three galactic regions:
+
+| System | Region | Match level |
+|---|---|---|
+| PHUA AUB RG-Y D3678 | Galactic Centre | sector+boxel+masscode |
+| JUENAE SL-K D9-3226 | Galactic Centre | sector+boxel+masscode + sector fallback |
+| BYOOMI EP-I C25-5880 | Galactic Core boundary | sector only |
+| BYOOMI IY-G D11-5408 | Galactic Core boundary | sector+boxel+masscode |
+| PHROI FLYUAE IV-I C24-3143 | Odin's Hold | sector+boxel+masscode |
+
+One reading had to be abandoned midway through due to a script bug — the CSV path was hardcoded relative to the working directory, so running the script from inside the `scripts/` folder caused a `FileNotFoundError` after all the distances had been entered. Frustrating. Fixed and rerun.
+
+There was also a moment mid-session where Kevin couldn't tell if a system name contained the letter "I" (eye) or "l" (ell) — the in-game font makes them indistinguishable. He had to ask ChatGPT to disambiguate it. This is a real UX problem: a wrong character causes the search to silently return nothing.
+
+### What the Data Actually Shows
+
+Going in, the hypothesis was: *smaller sequence distance predicts smaller physical distance*. The script was even sorting results by sequence proximity based on this assumption.
+
+The data doesn't support it.
+
+Looking at BYOOMI IY-G D11-5408, the sequence distances range from 1365 to 8705 — nearly 8x variation — but the physical distances are all squashed into a 53–104 ly band with no consistent ordering. The match with sequence distance 6832 is *closer* than the one with 1365. For PHUA AUB RG-Y D3678, all five results cluster between 57–79 ly despite a 19x range in sequence distance.
+
+**Sequence distance does not predict physical distance.** At least not with this matching approach.
+
+What *does* matter is the match level. Every `sector+boxel+masscode` result came back under ~110 ly. Every `sector`-only result was 393–1370 ly. The structural level of the match is the real predictor.
+
+### Two Anomalies Worth Investigating
+
+**1. JUENAE SL-K D9-3226 looks like a parsing issue.** The script parsed `input_sequence=9`, but the matched systems are `d9-3625`, `d9-8813` — the format suggests `9-3226` is a compound sequence number, not just `9`. The hyphen may indicate a different naming convention. This is probably a manual entry error or an unusual system name format, but it needs investigation. Worth noting that all the data here is manually entered — mistakes happen.
+
+**2. PHROI FLYUAE reveals something more interesting.** One result came back at 14.54 ly (`IV-I c24-447`, sharing the `24-` sequence prefix). The other four came back at 660–689 ly (`IV-I c11-*`, completely different prefix). This suggests the useful variable isn't numeric sequence distance, it's whether the matched system shares the same sequence *prefix* — `24-something` vs `11-something`. The script searches for this correctly, but the sorting and ranking logic isn't reflecting it.
+
+### What Needs to Change
+
+Two things to fix in the script before the next session:
+
+1. **Stop sorting by sequence distance** — the data says it's not meaningful. Need a better ranking approach.
+2. **Investigate the hyphenated sequence format** — `D9-3226` may need different parsing logic.
+
+The broader question — does this tool actually produce useful results? — is still open but leaning positive. `sector+boxel+masscode` matches are consistently returning systems within 50–110 ly, which for an explorer trying to find a fleet carrier is genuinely useful. That's the core value proposition. The sequence sorting is a nice-to-have that turned out not to work, not a fundamental flaw.
+
+### What's Next
+
+Kevin is continuing toward Colonia tomorrow. More data from different regions will help confirm whether the `sector+boxel+masscode` pattern holds reliably or whether tonight was lucky. Colonia has much better EDSM coverage than the core — it'll be a proper test.
+
+---

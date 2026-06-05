@@ -2,7 +2,7 @@
 
 ---
 
-## Friday 5th June 2026 — Starting Out
+## Friday 5th June 2026 17:35 — Starting Out
 
 *This is a summary of today's session authored by Claude and approved by Kevin.*
 

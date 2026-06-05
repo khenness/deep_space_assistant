@@ -1,0 +1,11 @@
+timestamp,input_system,input_sector,input_boxel,input_mass_code,input_sequence,matched_system,match_level,search_prefix,sequence_distance,measured_distance_ly
+2026-06-05T14:48:59.251059,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7560,sector+boxel+masscode,Stuemeae FG-Y d756,1,999.0
+2026-06-05T14:48:59.251059,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7562,sector+boxel+masscode,Stuemeae FG-Y d756,1,999.0
+2026-06-05T14:48:59.251059,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7563,sector+boxel+masscode,Stuemeae FG-Y d756,2,999.0
+2026-06-05T14:48:59.251059,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7566,sector+boxel+masscode,Stuemeae FG-Y d756,5,999.0
+2026-06-05T14:48:59.251059,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7568,sector+boxel+masscode,Stuemeae FG-Y d756,7,999.0
+2026-06-05T14:50:11.508762,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7560,sector+boxel+masscode,Stuemeae FG-Y d756,1,888.0
+2026-06-05T14:50:11.508762,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7562,sector+boxel+masscode,Stuemeae FG-Y d756,1,888.0
+2026-06-05T14:50:11.508762,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7563,sector+boxel+masscode,Stuemeae FG-Y d756,2,888.0
+2026-06-05T14:50:11.508762,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7566,sector+boxel+masscode,Stuemeae FG-Y d756,5,888.0
+2026-06-05T14:50:11.508762,Stuemeae FG-Y d7561,Stuemeae,FG-Y,d,7561,Stuemeae FG-Y d7568,sector+boxel+masscode,Stuemeae FG-Y d756,7,88.0

@@ -296,3 +296,98 @@ The immediate next step is better in-game measurement data. Kevin is now in Colo
 Longer term: the bulk data file opens up a local search mode that doesn't depend on EDSM's API at all. A small SQLite database indexed on sector+boxel would make lookups instant, eliminate the Cloudflare dependency entirely, and be refreshed from the nightly dump whenever it goes stale. That's a natural next step — but only once the measurement data confirms the approach holds across more regions.
 
 ---
+
+## Saturday 6th June 2026 (continued) — From Scripts to a Working Product
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### From Analysis to Infrastructure
+
+The evening had confirmed the hypothesis: sector+boxel prefix matching is a spatial guarantee. The question shifted from *does this work* to *how do we build a real thing around it*.
+
+The EDSM bulk dump was already on disk. The natural next step was getting all 96.4 million systems into SQLite so queries could run locally, without Cloudflare, without network latency. Kevin had never used SQLite seriously before. The explanation was: it's a single file, it lives next to your code, you query it with standard SQL. No server to run, no configuration, no `docker-compose.yml` for a database. For a project with one developer and one user, this is almost always the right call.
+
+The import script — `scripts/import_edsm_dump/import_edsm_dump.py` — reads the 14 GB JSON file in batches of 10,000, parses each system's name into its structural components (sector, boxel, mass code, sequence), and writes them to the DB. The schema is intentionally minimal:
+
+```sql
+CREATE TABLE systems (name TEXT, x REAL, y REAL, z REAL, sector TEXT, boxel TEXT, mass_code TEXT)
+```
+
+Lines that fail to parse are stored with NULL columns rather than dropped. 0.16% of the 96.4 million records fell into this category.
+
+Kevin ran the import and went to do other things. It took a while. When it finished, the DB was 9.5 GB on disk. The entire EDSM catalogue, fully queryable, available offline forever.
+
+### Building the API
+
+With the data in place, a FastAPI service was built around it. Kevin had never used FastAPI before. The mental model it needed: it's a framework that turns Python functions into HTTP endpoints, handles routing and validation automatically, and generates OpenAPI docs for free. It has a dependency injection system — `Depends(get_db)` — that handles opening and closing the SQLite connection per request without threading issues.
+
+Three endpoints:
+- `GET /nearby` — find known systems near a procedural name using prefix matching
+- `GET /dssa/nearest` — find the nearest DSSA fleet carriers to a given system
+- `GET /` — serves the HTML frontend
+
+Tests came with the implementation: unit tests against in-memory SQLite for the search logic, integration tests using FastAPI's `TestClient` for the HTTP layer. 30 tests total.
+
+Two threading bugs surfaced during testing:
+
+**`sqlite3.ProgrammingError: SQLite objects created in a thread`** — FastAPI runs sync endpoints in a thread pool. The fix: `check_same_thread=False` on all `sqlite3.connect()` calls, including test fixtures.
+
+**`sqlite3.OperationalError: database is locked`** — The EDSM import holds a write lock while batch-committing. If the API starts while the import is still running, the API's read connections time out instantly. The fix: `timeout=10` to give the write lock time to release.
+
+### The Frontend
+
+Kevin's brief: make it as simple as possible. A search box, a button, and a table of results. No React, no build step, no Node.js. A single `index.html` served directly by FastAPI via `FileResponse`.
+
+It looked exactly like a plain HTML page from 2005, which was the point. Monospace font, black text on white background, table with borders. It worked.
+
+### DSSA: The Real Use Case
+
+Partway through the session, Kevin explained what actually prompted this whole project. His ship had been damaged in deep space and he'd needed to find the nearest DSSA carrier — the network of player-maintained fleet carriers scattered across the galaxy at strategic positions, each offering repair and refuel services. No existing tool handled undiscovered systems well.
+
+The DSSA carrier roster is community-maintained in a Google Sheet. 102 entries. An import script was built to download the CSV, normalise carrier names (stripping parenthetical nicknames and body suffixes like `4 B`), look up each carrier's system coordinates in the local SQLite DB, and store everything in a `dssa_carriers` table.
+
+The import took over an hour. The root cause: the coordinate lookup was using `LOWER(name) = LOWER(?)`, which bypasses SQLite's indexes entirely — every lookup was a full scan of 96 million rows. The fix was to create a case-insensitive index and rewrite the query to use it:
+
+```sql
+CREATE INDEX idx_name ON systems (name COLLATE NOCASE)
+-- query: WHERE name = ? COLLATE NOCASE
+```
+
+After the index was built, the same 102-row import ran in seconds. 101 of 102 carriers got coordinates — the one missing entry ("Delacor") turned out to be a station name, not a system name.
+
+The DSSA search itself computes 3D Euclidean distance from the input system to every carrier with known coordinates, sorts by distance, and returns the top N. For undiscovered systems (not in the DB), it first finds a nearby reference system via prefix matching and calculates from there — reporting the reference system, confidence level, and expected error to the user.
+
+### Another Performance Issue
+
+When Kevin tried the nearby search with 50 results enabled, it was taking 7.5 seconds. The SQL query was returning every matching system without a LIMIT clause — for the sector-level fallback on a name like `BYOOMI`, that meant fetching 163,846 rows over the network between SQLite and Python, then trimming to 50 in application code. Adding `LIMIT num_results * 10` to the query dropped the response from 7.5 seconds to 0.07 seconds.
+
+### UI Iteration
+
+A few rounds of UI polish followed. Kevin wanted the results count to be editable per tab (default 10, max 50). Then he wanted the system name to persist when switching between tabs — type something in the "Find Nearby" tab, switch to "DSSA", and the text is still there.
+
+The first instinct was to use DOM manipulation — move a single input element between panels when switching tabs. This was correctly rejected as brittle: the element's state and positioning would depend on the order of JS execution rather than being declared in the HTML. The simpler approach: two separate inputs, kept in sync via `input` event listeners. The same pattern was applied to the results count inputs.
+
+### Named System Support
+
+A UX gap surfaced: typing "Sol" into the "Find Nearby Discovered Systems" tab returned nothing. The search code correctly detected that Sol isn't a procedural name and returned early — but to a user, it just looks broken.
+
+The fix was to route non-procedural names through a different search path: look up the system's coordinates by exact name match, then find all systems within a 200 ly bounding box using the `x` coordinate index (newly added), compute exact Euclidean distances, and return the closest ones. For a named system in the DB, you get real coordinate-based results. For a named system not in the DB (e.g. a typo), you get a clean empty result.
+
+The branch is completely deterministic — procedural names always match the `XX-X` boxel pattern, named systems never do. No heuristics, no probability. The same API response shape works for both paths; the frontend doesn't know which branch was taken.
+
+A new SQLite index — `idx_x` on `systems(x)` — was added to make the bounding box query fast. Without it, a named system search would scan 96 million rows. With it, SQLite narrows to roughly 0.1% of the table, then filters `y` and `z` in memory.
+
+### Where Things Stand
+
+The project now has a working local service:
+- 96.4M systems in SQLite, queryable offline
+- Procedural and named system support in the nearby search
+- DSSA carrier search with distance calculation and undiscovered system support
+- A minimal but functional HTML frontend
+- 33 passing tests
+
+The data philosophy is settled: download and host the data locally, update on a schedule, show data freshness timestamps in the UI. No live API calls at query time. Resilient to third-party failures.
+
+Still on the list: tourist/sightseeing spots as the next dataset, data freshness timestamps in the UI, Docker containerisation (explicitly deferred — not the interesting part), and eventually a proper React frontend that Kevin wants to design himself.
+
+---

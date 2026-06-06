@@ -4,6 +4,7 @@
 data/*.json
 data/*.json.gz
 data/*.db
+data/*.db-journal
 
 # IDE
 .idea/

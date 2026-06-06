@@ -12,3 +12,20 @@ class NearbySystem(BaseModel):
 class NearbyResponse(BaseModel):
     input_system: str
     results: list[NearbySystem]
+
+
+class DSSACarrier(BaseModel):
+    callsign: str
+    vessel: str
+    operation: str
+    region: str
+    system_name: str
+    distance_ly: float | None
+    services: list[str]
+    owner: str
+
+
+class DSSAResponse(BaseModel):
+    input_system: str
+    reference_system: str | None
+    results: list[DSSACarrier]

@@ -4,78 +4,93 @@
   <meta charset="UTF-8">
   <title>Deep Space Assistant</title>
   <style>
-    body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 0 20px; }
     input { width: 100%; padding: 8px; font-family: monospace; font-size: 1em; box-sizing: border-box; }
     button { margin-top: 8px; padding: 8px 16px; font-family: monospace; font-size: 1em; cursor: pointer; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; font-family: monospace; }
+    .tab.active { background: #fff; border-bottom-color: #fff; font-weight: bold; }
+    .panel { display: none; }
+    .panel.active { display: block; }
     table { width: 100%; border-collapse: collapse; margin-top: 24px; }
     th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ccc; }
     th { background: #f0f0f0; }
-    #error { color: red; margin-top: 16px; }
-    #status { margin-top: 16px; color: #666; }
+    #nearby-error, #dssa-error { color: red; margin-top: 16px; }
+    #nearby-status, #dssa-status { margin-top: 16px; color: #666; }
+    .reference-note { margin-top: 12px; color: #666; font-style: italic; font-size: 0.9em; }
   </style>
 </head>
 <body>
 
   <h1>Deep Space Assistant</h1>
-  <p>Enter an undiscovered system name to find nearby known systems.</p>
 
-  <input id="system-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
-  <br>
-  <button onclick="search()">Search</button>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('nearby')">Find Nearby Systems</button>
+    <button class="tab" onclick="switchTab('dssa')">Find DSSA Carrier</button>
+  </div>
 
-  <div id="status"></div>
-  <div id="error"></div>
-  <table id="results-table" style="display:none">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>System</th>
-        <th>Match level</th>
-        <th>Confidence</th>
-        <th>Typical range</th>
-      </tr>
-    </thead>
-    <tbody id="results-body"></tbody>
-  </table>
+  <!-- Nearby Systems Panel -->
+  <div id="panel-nearby" class="panel active">
+    <p>Find known EDSM systems near an undiscovered system.</p>
+    <input id="nearby-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
+    <br>
+    <button onclick="searchNearby()">Search</button>
+    <div id="nearby-status"></div>
+    <div id="nearby-error"></div>
+    <table id="nearby-table" style="display:none">
+      <thead>
+        <tr><th>#</th><th>System</th><th>Match level</th><th>Confidence</th><th>Typical range</th></tr>
+      </thead>
+      <tbody id="nearby-body"></tbody>
+    </table>
+  </div>
+
+  <!-- DSSA Carrier Panel -->
+  <div id="panel-dssa" class="panel">
+    <p>Find the nearest DSSA fleet carriers. Works with undiscovered systems.</p>
+    <input id="dssa-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
+    <br>
+    <button onclick="searchDSSA()">Search</button>
+    <div id="dssa-status"></div>
+    <div id="dssa-error"></div>
+    <div id="dssa-reference" class="reference-note"></div>
+    <table id="dssa-table" style="display:none">
+      <thead>
+        <tr><th>#</th><th>Carrier</th><th>Callsign</th><th>System</th><th>Region</th><th>Distance</th><th>Services</th></tr>
+      </thead>
+      <tbody id="dssa-body"></tbody>
+    </table>
+  </div>
 
   <script>
-    document.getElementById("system-input").addEventListener("keydown", e => {
-      if (e.key === "Enter") search();
-    });
+    function switchTab(name) {
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', ['nearby','dssa'][i] === name);
+      });
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+    }
 
-    async function search() {
-      const system = document.getElementById("system-input").value.trim();
-      const status = document.getElementById("status");
-      const error = document.getElementById("error");
-      const table = document.getElementById("results-table");
-      const body = document.getElementById("results-body");
+    document.getElementById("nearby-input").addEventListener("keydown", e => { if (e.key === "Enter") searchNearby(); });
+    document.getElementById("dssa-input").addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
 
-      error.textContent = "";
-      body.innerHTML = "";
-      table.style.display = "none";
+    async function searchNearby() {
+      const system = document.getElementById("nearby-input").value.trim();
+      const status = document.getElementById("nearby-status");
+      const error = document.getElementById("nearby-error");
+      const table = document.getElementById("nearby-table");
+      const body = document.getElementById("nearby-body");
 
-      if (!system) {
-        error.textContent = "Please enter a system name.";
-        return;
-      }
-
+      error.textContent = ""; body.innerHTML = ""; table.style.display = "none";
+      if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
 
       try {
         const resp = await fetch(`/nearby?system=${encodeURIComponent(system)}&results=10`);
         const data = await resp.json();
-
         status.textContent = "";
-
-        if (!resp.ok) {
-          error.textContent = data.detail || "Something went wrong.";
-          return;
-        }
-
-        if (data.results.length === 0) {
-          status.textContent = "No known systems found near " + system + ".";
-          return;
-        }
+        if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
+        if (data.results.length === 0) { status.textContent = "No known systems found near " + system + "."; return; }
 
         data.results.forEach((r, i) => {
           const row = body.insertRow();
@@ -85,7 +100,49 @@
           row.insertCell().textContent = r.confidence;
           row.insertCell().textContent = r.typical_range_ly;
         });
+        table.style.display = "table";
+      } catch (e) {
+        status.textContent = "";
+        error.textContent = "Could not reach the API. Is the server running?";
+      }
+    }
 
+    async function searchDSSA() {
+      const system = document.getElementById("dssa-input").value.trim();
+      const status = document.getElementById("dssa-status");
+      const error = document.getElementById("dssa-error");
+      const reference = document.getElementById("dssa-reference");
+      const table = document.getElementById("dssa-table");
+      const body = document.getElementById("dssa-body");
+
+      error.textContent = ""; body.innerHTML = ""; table.style.display = "none"; reference.textContent = "";
+      if (!system) { error.textContent = "Please enter a system name."; return; }
+      status.textContent = "Searching...";
+
+      try {
+        const resp = await fetch(`/dssa/nearest?system=${encodeURIComponent(system)}&results=5`);
+        const data = await resp.json();
+        status.textContent = "";
+        if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
+        if (data.results.length === 0) {
+          status.textContent = "No DSSA carriers found. Has the carrier roster been imported?";
+          return;
+        }
+
+        if (data.reference_system) {
+          reference.textContent = `Distances calculated from nearest known system: ${data.reference_system}`;
+        }
+
+        data.results.forEach((r, i) => {
+          const row = body.insertRow();
+          row.insertCell().textContent = i + 1;
+          row.insertCell().textContent = r.vessel;
+          row.insertCell().textContent = r.callsign;
+          row.insertCell().textContent = r.system_name;
+          row.insertCell().textContent = r.region;
+          row.insertCell().textContent = r.distance_ly !== null ? r.distance_ly.toLocaleString() + " ly" : "unknown";
+          row.insertCell().textContent = r.services.join(", ");
+        });
         table.style.display = "table";
       } catch (e) {
         status.textContent = "";

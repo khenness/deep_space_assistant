@@ -1,3 +1,4 @@
+import math
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -101,3 +102,71 @@ def find_nearby(
                 }
 
     return list(seen.values())[:num_results]
+
+
+def _get_system_coords(system_name: str, db: sqlite3.Connection) -> tuple[float, float, float] | None:
+    row = db.execute(
+        "SELECT x, y, z FROM systems WHERE LOWER(name) = LOWER(?)",
+        (system_name.strip(),),
+    ).fetchone()
+    return row if row else None
+
+
+def find_nearest_dssa(
+    system_name: str,
+    db: sqlite3.Connection,
+    num_results: int = 5,
+) -> dict:
+    """
+    Find the nearest DSSA carriers to a given system.
+
+    For undiscovered systems (not in our DB), we first find a nearby reference
+    system using prefix matching, then compute distances from that reference.
+    For known systems, we compute distances directly.
+
+    Returns a dict with reference_system used and sorted carrier results.
+    """
+    carriers = db.execute(
+        "SELECT callsign, vessel, operation, region, system_name, x, y, z, services, owner "
+        "FROM dssa_carriers WHERE x IS NOT NULL"
+    ).fetchall()
+
+    if not carriers:
+        return {"reference_system": None, "results": []}
+
+    # Try to get coords for the input system directly
+    coords = _get_system_coords(system_name, db)
+    reference_system = system_name
+
+    # If not found (undiscovered system), find a nearby known reference
+    if not coords:
+        nearby = find_nearby(system_name, db, num_results=1)
+        if not nearby:
+            return {"reference_system": None, "results": []}
+        reference_system = nearby[0]["name"]
+        coords = _get_system_coords(reference_system, db)
+
+    if not coords:
+        return {"reference_system": None, "results": []}
+
+    rx, ry, rz = coords
+
+    results = []
+    for callsign, vessel, operation, region, system_name_c, cx, cy, cz, services, owner in carriers:
+        dist = math.sqrt((rx - cx) ** 2 + (ry - cy) ** 2 + (rz - cz) ** 2)
+        results.append({
+            "callsign": callsign,
+            "vessel": vessel,
+            "operation": operation or "",
+            "region": region or "",
+            "system_name": system_name_c,
+            "distance_ly": round(dist, 1),
+            "services": [s.strip() for s in services.split(",")] if services else [],
+            "owner": owner or "",
+        })
+
+    results.sort(key=lambda r: r["distance_ly"])
+    return {
+        "reference_system": reference_system if reference_system != system_name else None,
+        "results": results[:num_results],
+    }

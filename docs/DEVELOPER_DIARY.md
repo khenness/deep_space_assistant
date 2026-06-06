@@ -391,3 +391,63 @@ The data philosophy is settled: download and host the data locally, update on a 
 Still on the list: tourist/sightseeing spots as the next dataset, data freshness timestamps in the UI, Docker containerisation (explicitly deferred — not the interesting part), and eventually a proper React frontend that Kevin wants to design himself.
 
 ---
+
+## Saturday 6th June 2026 (late night) — Testing in the Field, Trust Calibration
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### A Real Test, A Real Discrepancy
+
+Kevin was flying in deep space and used the tool live. He typed `WEPOOE SG-X B5124` into the DSSA tab and got a result of ~4,776 ly to DSSA Buurian Anchorage. The game said 4,007 ly. That's a 769 ly error on a result that was labelled "high confidence, ± < 50 ly."
+
+The initial explanation offered — permit-locked systems causing gaps in EDSM coverage — was wrong. Kevin pushed back immediately and correctly. There are hundreds of freely-accessible named systems near Sol, and permit locks are irrelevant to the problem at hand. The real issue took more digging.
+
+### The Root Cause: Sparse Sector Coverage
+
+The EDSM bulk dump is populated from player submissions. In densely explored regions like Colonia or the human bubble, sector+boxels have hundreds or thousands of known systems. Out in deep space, many sector+boxels have two or three. When the prefix matching finds a "high confidence" match in a two-system boxel, it's not high confidence at all — it just means those two systems share the same structural name prefix. They might be hundreds of light years apart.
+
+The confidence tiers were derived from bulk analysis of *dense* sectors. Applied to sparse ones, they were lying.
+
+### The Fix: Surface Density
+
+The solution was to compute and display how many known systems exist in the matched sector+boxel alongside every result. One extra query per search using the existing `idx_name` index — fast, no new indexes needed.
+
+The UI now shows the count next to confidence: `high (87 known)` for a dense sector, `high (2 known)` for a sparse one. Colour coding communicates urgency at a glance — orange below 20 known systems, red below 5, with a plain-language warning: *"very sparse sector, actual distances may be significantly higher than shown."*
+
+The same information flows through to the DSSA reference note. When distances are calculated from an approximate reference system in a sparse sector, the note now reads in red rather than grey, with an explicit caveat.
+
+The first attempt at the density query used `COLLATE NOCASE` on the `sector` column — which bypassed the index and caused a full 96M row scan, making the search hang. It was rewritten to use a `name LIKE 'Sector Boxel %'` pattern against the existing NOCASE name index instead.
+
+### Another Index: `idx_xyz`
+
+The named system bounding box query (introduced in the previous session to handle inputs like "Sol") was also found to be slow. The `idx_x` single-column index narrowed by x-coordinate but left a huge cross-section of the galaxy to scan for y and z — near Sol, the busiest part of EDSM, that was potentially millions of candidates. A composite `idx_xyz` on `(x, y, z)` was added. SQLite can then filter all three axes at the index level, returning a tight spatial box without loading unrelated rows into memory.
+
+Building `idx_xyz` on 96M rows requires a write lock on the DB, so the server had to be stopped first. This is a one-time operation — the index persists.
+
+There was also a subtler bug in the named system path: the query used `LIMIT num_results * 50` to cap the candidate set before sorting by distance. The problem is that SQLite returns rows in index order, not distance order — so with a limit in place, Alpha Centauri (1.3 ly from Sol) could be excluded from the candidate set while arbitrary systems 190 ly away were included. The limit was removed. With `idx_xyz` in place, fetching all candidates in a 200 ly box is fast regardless of count.
+
+### Polishing the UI
+
+Several rounds of smaller improvements:
+
+**Title and tagline** — The app is now "Elite Dangerous: Deep Space Assistant" with the tagline *"A lightning fast tool for explorers that works with undiscovered systems!"*
+
+**"Showing results for" label** — Results tables now show which system was searched above the table. This prevents confusion when switching between tabs where stale results from a previous search might still be visible.
+
+**"Confidence" → "Accuracy" on the DSSA tab** — The word "confidence" meant two different things across tabs: on the nearby tab it describes how close the prefix match is; on the DSSA tab it was describing the reference system quality. Renamed to "Accuracy" on the DSSA tab to reduce confusion. Exact results show "exact" rather than a dash.
+
+**Better error messages** — When a system has no EDSM coverage and no reference can be found for DSSA distances, the message now explains why rather than implying the carrier roster is missing.
+
+### Field Validation
+
+Kevin ran a final test from `AGNAIRY ZS-F D12-3105`, currently in deep space. The tool reported ~3,385 ly to Buurian Anchorage; the game measured 3,447 ly — a 62 ly error on a 3,447 ly distance (1.8%). The sparse sector warning was displayed correctly in red. The reference system was only 1 known system in its sector, so the warning was accurate and honest.
+
+For a tool that's working from an approximate reference point in an uncharted region, 62 ly at 3,400 ly range is a useful result. The user knows it's an estimate. That's the right outcome.
+
+### Where Things Stand
+
+33 passing tests. The density feature is the most significant improvement to result trustworthiness since the initial build — it turns a potentially misleading "high confidence" label into an honest one. The tool now tells you not just what it found, but how much to trust it.
+
+The distance error column remains in the DSSA table for now — Kevin noted it's probably more confusing to users than helpful, but it's useful during development to see the raw numbers. Will be revisited.
+
+---

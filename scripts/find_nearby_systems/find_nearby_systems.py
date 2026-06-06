@@ -8,6 +8,10 @@ Usage:
     python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --results 5 --gather
     python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --results 5 --gather --note "near neutron highway"
 
+    # Use local SQLite database instead of EDSM API (requires import_edsm_dump.py first)
+    python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --local
+    python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --local --db data/edsm_test.db
+
 Procedural name structure (community-researched, not official):
     Stuemeae   FG-Y   d   7561
     [sector]  [boxel] [mass code] [sequence]
@@ -22,6 +26,7 @@ Mass code approximate boxel sizes:
 import argparse
 import csv
 import re
+import sqlite3
 import sys
 import time
 from dataclasses import dataclass
@@ -33,6 +38,7 @@ import requests
 EDSM_SYSTEMS_URL = "https://www.edsm.net/api-v1/systems"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_FILE = REPO_ROOT / "data" / "distance_data.csv"
+DEFAULT_DB = REPO_ROOT / "data" / "edsm.db"
 REQUEST_DELAY = 2.0  # seconds between EDSM requests
 
 # Approximate boxel diameter in ly per mass code (community research, unverified)
@@ -137,7 +143,16 @@ def edsm_prefix_search(prefix: str) -> list[dict]:
         return []
 
 
-def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
+def local_prefix_search(prefix: str, db: sqlite3.Connection) -> list[dict]:
+    """Search the local SQLite database for all systems whose name starts with prefix."""
+    rows = db.execute(
+        "SELECT name, x, y, z FROM systems WHERE name LIKE ? AND sector IS NOT NULL",
+        (prefix + "%",),
+    ).fetchall()
+    return [{"name": r[0], "coords": {"x": r[1], "y": r[2], "z": r[3]}} for r in rows]
+
+
+def find_nearby_systems(system_name: str, num_results: int, db: sqlite3.Connection | None = None) -> list[dict]:
     """
     Search EDSM at each structural level until we have enough results.
     Returns up to num_results matches sorted by match level (most specific first).
@@ -169,9 +184,14 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
 
         prefix = level["prefix"]
         print(f"  [{level['label']}] Searching '{prefix}%' ...", end=" ", flush=True)
-        time.sleep(REQUEST_DELAY)
-        results = edsm_prefix_search(prefix)
-        api_calls += 1
+
+        if db is not None:
+            results = local_prefix_search(prefix, db)
+        else:
+            time.sleep(REQUEST_DELAY)
+            results = edsm_prefix_search(prefix)
+            api_calls += 1
+
         new_count = 0
 
         for r in results:
@@ -300,9 +320,30 @@ def main():
         default="",
         help='Optional note to tag all rows in this session e.g. "near neutron highway"',
     )
+    parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Query local SQLite database instead of EDSM API (requires import_edsm_dump.py)",
+    )
+    parser.add_argument(
+        "--db", type=Path, default=DEFAULT_DB,
+        help=f"Path to SQLite database when using --local (default: {DEFAULT_DB})",
+    )
     args = parser.parse_args()
 
-    matches = find_nearby_systems(args.system, args.results)
+    db = None
+    if args.local:
+        if not args.db.exists():
+            print(f"Error: database not found: {args.db}")
+            print("Run scripts/import_edsm_dump/import_edsm_dump.py first.")
+            sys.exit(1)
+        db = sqlite3.connect(args.db)
+        print(f"Using local database: {args.db}")
+
+    matches = find_nearby_systems(args.system, args.results, db=db)
+
+    if db is not None:
+        db.close()
 
     if not matches:
         sys.exit(1)

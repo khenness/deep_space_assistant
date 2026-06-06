@@ -1,8 +1,9 @@
 .venv/
 
-# Large EDSM data dumps — download separately, do not commit
+# Large EDSM data dumps and derived databases — download/generate separately, do not commit
 data/*.json
 data/*.json.gz
+data/*.db
 
 # IDE
 .idea/

@@ -120,7 +120,7 @@
       status.textContent = "Searching...";
 
       try {
-        const resp = await fetch(`/dssa/nearest?system=${encodeURIComponent(system)}&results=5`);
+        const resp = await fetch(`/dssa/nearest?system=${encodeURIComponent(system)}&results=10`);
         const data = await resp.json();
         status.textContent = "";
         if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }

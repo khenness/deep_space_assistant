@@ -86,22 +86,30 @@ def _find_nearby_named(
         return []
 
     sx, sy, sz = coords
-    radius = 200.0
+    radius = 50.0
 
-    # Bounding box narrows via idx_xyz. No LIMIT here — we need all candidates
-    # in the box before sorting by distance, otherwise close named systems
-    # (e.g. Alpha Centauri) may be excluded in favour of arbitrary distant ones.
-    candidates = db.execute(
-        "SELECT name, x, y, z FROM systems "
-        "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
-        "AND name != ? COLLATE NOCASE",
-        (sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
-         system_name),
+    # Bounding box via idx_xyz, distance computed and sorted in SQLite so we
+    # only transfer num_results rows to Python. Avoids fetching the entire box
+    # (potentially hundreds of thousands of rows near Sol) into memory.
+    _BLOCKLIST = ("AssetViewerSystem",)
+    rows = db.execute(
+        "SELECT name, x, y, z, "
+        "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
+        "FROM systems "
+        "WHERE sector IS NULL "
+        "AND x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
+        "AND name != ? COLLATE NOCASE "
+        "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +
+        "ORDER BY dist_sq "
+        "LIMIT ?",
+        (sx, sx, sy, sy, sz, sz,
+         sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
+         system_name, *_BLOCKLIST, num_results),
     ).fetchall()
 
     results = []
-    for name, cx, cy, cz in candidates:
-        dist = math.sqrt((sx - cx) ** 2 + (sy - cy) ** 2 + (sz - cz) ** 2)
+    for name, cx, cy, cz, dist_sq in rows:
+        dist = math.sqrt(dist_sq)
         if dist <= radius:
             results.append({
                 "name": name,
@@ -110,13 +118,9 @@ def _find_nearby_named(
                 "confidence": "exact",
                 "typical_range_ly": f"< {dist:.1f} ly",
                 "sector_density": None,
-                "distance_ly": dist,
             })
 
-    results.sort(key=lambda r: r["distance_ly"])
-    for r in results:
-        del r["distance_ly"]
-    return results[:num_results]
+    return results
 
 
 def find_nearby(

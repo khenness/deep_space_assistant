@@ -31,8 +31,10 @@ def db():
         ("Zunou AA-A d1",    100.0, 200.0, 300.0, "Zunou", "AA-A", "d"),
         # Different sector entirely — should never appear in results
         ("Colonia AA-A d1",  999.0, 999.0, 999.0, "Colonia", "AA-A", "d"),
-        # Unparsed named system — should never appear in results
-        ("Sol",              0.0, 0.0, 0.0, None, None, None),
+        # Named systems (sector IS NULL) — used for coordinate-radius search
+        ("Sol",              0.0,  0.0,  0.0,  None, None, None),
+        ("Alpha Centauri",   3.0,  0.0,  3.0,  None, None, None),
+        ("Barnard's Star",   5.0,  0.0,  0.0,  None, None, None),
     ])
     conn.commit()
     yield conn

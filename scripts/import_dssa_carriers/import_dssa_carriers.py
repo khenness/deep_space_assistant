@@ -62,10 +62,29 @@ def fetch_csv() -> list[dict]:
     return list(reader)
 
 
+def normalise_system_name(raw: str) -> str:
+    """
+    Clean up system names from the spreadsheet before DB lookup.
+    Handles two common variants:
+      - Trailing parenthetical nicknames: "Dryau Ausms KG-Y E3390 (Dryau Awesomes)" -> "Dryau Ausms KG-Y E3390"
+      - Body suffixes (planet/moon): "Phipoea WK-E d12-1374 4 B" -> "Phipoea WK-E d12-1374"
+        (body suffix = trailing tokens after the sequence number that don't match name pattern)
+    """
+    import re
+    name = raw.strip()
+    # Strip parenthetical nickname
+    name = re.sub(r'\s*\(.*?\)\s*$', '', name).strip()
+    # Strip trailing body suffix — anything after a procedural sequence number
+    # e.g. "d12-1374 4 B" -> keep up to and including the sequence
+    name = re.sub(r'^(.+?\s+[A-Z]{2}-[A-Z]\s+[a-h]\d+(?:-\d+)?)\s+.*$', r'\1', name, flags=re.IGNORECASE)
+    return name
+
+
 def lookup_coordinates(system_name: str, conn: sqlite3.Connection) -> tuple[float, float, float] | None:
+    cleaned = normalise_system_name(system_name)
     row = conn.execute(
-        "SELECT x, y, z FROM systems WHERE LOWER(name) = LOWER(?)",
-        (system_name.strip(),),
+        "SELECT x, y, z FROM systems WHERE name = ? COLLATE NOCASE",
+        (cleaned,),
     ).fetchone()
     return row if row else None
 
@@ -95,6 +114,7 @@ def run_import(db_path: Path) -> None:
         if not system:
             continue
 
+        system = normalise_system_name(system)
         coords = lookup_coordinates(system, conn)
 
         conn.execute(

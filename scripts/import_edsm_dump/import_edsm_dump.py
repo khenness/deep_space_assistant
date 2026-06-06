@@ -63,6 +63,7 @@ def create_schema(conn: sqlite3.Connection) -> None:
         )
     """)
     conn.execute("CREATE INDEX idx_sector_boxel ON systems (sector, boxel)")
+    conn.execute("CREATE INDEX idx_name ON systems (name COLLATE NOCASE)")
     conn.commit()
 
 

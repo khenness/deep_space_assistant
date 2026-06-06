@@ -106,7 +106,7 @@ def find_nearby(
 
 def _get_system_coords(system_name: str, db: sqlite3.Connection) -> tuple[float, float, float] | None:
     row = db.execute(
-        "SELECT x, y, z FROM systems WHERE LOWER(name) = LOWER(?)",
+        "SELECT x, y, z FROM systems WHERE name = ? COLLATE NOCASE",
         (system_name.strip(),),
     ).fetchone()
     return row if row else None

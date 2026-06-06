@@ -45,6 +45,16 @@ def parse_system_name(name: str) -> ParsedName:
     return ParsedName(sector="", boxel="", mass_code="", sequence="", raw=name)
 
 
+def _sector_density(parsed: ParsedName, db: sqlite3.Connection) -> int | None:
+    if not parsed.is_procedural:
+        return None
+    row = db.execute(
+        "SELECT COUNT(*) FROM systems WHERE name LIKE ? AND sector IS NOT NULL",
+        (f"{parsed.sector} {parsed.boxel} %",),
+    ).fetchone()
+    return row[0] if row else 0
+
+
 def _search_levels(parsed: ParsedName) -> list[dict]:
     levels = []
     seq = parsed.sequence
@@ -78,17 +88,15 @@ def _find_nearby_named(
     sx, sy, sz = coords
     radius = 200.0
 
-    # Bounding box narrows via idx_xyz; Euclidean filter happens in Python.
-    # LIMIT is generous (num_results * 50) since we still need to sort by
-    # distance and discard corners of the box — but caps the fetch near
-    # dense regions like Sol where the box contains thousands of systems.
+    # Bounding box narrows via idx_xyz. No LIMIT here — we need all candidates
+    # in the box before sorting by distance, otherwise close named systems
+    # (e.g. Alpha Centauri) may be excluded in favour of arbitrary distant ones.
     candidates = db.execute(
         "SELECT name, x, y, z FROM systems "
         "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
-        "AND name != ? COLLATE NOCASE "
-        "LIMIT ?",
+        "AND name != ? COLLATE NOCASE",
         (sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
-         system_name, num_results * 50),
+         system_name),
     ).fetchall()
 
     results = []
@@ -101,6 +109,7 @@ def _find_nearby_named(
                 "search_prefix": f"{system_name} ±{radius:.0f}ly",
                 "confidence": "exact",
                 "typical_range_ly": f"< {dist:.1f} ly",
+                "sector_density": None,
                 "distance_ly": dist,
             })
 
@@ -120,6 +129,7 @@ def find_nearby(
     if not parsed.is_procedural:
         return _find_nearby_named(system_name, db, num_results)
 
+    density = _sector_density(parsed, db)
     seen: dict[str, dict] = {}
 
     for level in _search_levels(parsed):
@@ -145,6 +155,7 @@ def find_nearby(
                     "search_prefix": prefix,
                     "confidence": confidence,
                     "typical_range_ly": typical_range,
+                    "sector_density": density,
                 }
 
     return list(seen.values())[:num_results]
@@ -187,18 +198,20 @@ def find_nearest_dssa(
     # If not found (undiscovered system), find a nearby known reference
     reference_confidence = "exact"
     reference_error_ly = None
+    reference_density = None
     if not coords:
         nearby = find_nearby(system_name, db, num_results=1)
         if not nearby:
-            return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "results": []}
+            return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "reference_density": None, "results": []}
         best = nearby[0]
         reference_system = best["name"]
         reference_confidence = best["confidence"]
         reference_error_ly = "± " + best["typical_range_ly"]
+        reference_density = best["sector_density"]
         coords = _get_system_coords(reference_system, db)
 
     if not coords:
-        return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "results": []}
+        return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "reference_density": None, "results": []}
 
     rx, ry, rz = coords
 
@@ -222,5 +235,6 @@ def find_nearest_dssa(
         "reference_system": reference_system if is_approximate else None,
         "reference_confidence": reference_confidence if is_approximate else None,
         "reference_error_ly": reference_error_ly if is_approximate else None,
+        "reference_density": reference_density if is_approximate else None,
         "results": results[:num_results],
     }

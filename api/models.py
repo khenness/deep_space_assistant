@@ -7,6 +7,7 @@ class NearbySystem(BaseModel):
     search_prefix: str
     confidence: str
     typical_range_ly: str
+    sector_density: int | None  # known systems in input's sector+boxel; None for named systems
 
 
 class NearbyResponse(BaseModel):
@@ -30,4 +31,5 @@ class DSSAResponse(BaseModel):
     reference_system: str | None
     reference_confidence: str | None  # "exact", "high", "medium", "low"
     reference_error_ly: str | None    # human-readable margin e.g. "± 50 ly"
+    reference_density: int | None     # known systems in reference's sector+boxel
     results: list[DSSACarrier]

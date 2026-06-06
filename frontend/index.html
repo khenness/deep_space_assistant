@@ -113,7 +113,16 @@
           row.insertCell().textContent = i + 1;
           row.insertCell().textContent = r.name;
           row.insertCell().textContent = r.match_level;
-          row.insertCell().textContent = r.confidence;
+
+          const confCell = row.insertCell();
+          if (r.sector_density !== null && r.sector_density !== undefined) {
+            confCell.textContent = r.confidence + " (" + r.sector_density + " known)";
+            if (r.sector_density < 5) confCell.style.color = "red";
+            else if (r.sector_density < 20) confCell.style.color = "orange";
+          } else {
+            confCell.textContent = r.confidence;
+          }
+
           row.insertCell().textContent = r.typical_range_ly;
         });
         table.style.display = "table";
@@ -142,13 +151,24 @@
         status.textContent = "";
         if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
         if (data.results.length === 0) {
-          status.textContent = "No DSSA carriers found. Has the carrier roster been imported?";
+          status.textContent = "No results — this system has no EDSM coverage nearby, so no reference point could be found to calculate distances from.";
           return;
         }
 
         const approximate = !!data.reference_system;
         if (approximate) {
-          reference.textContent = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
+          let note = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
+          if (data.reference_density !== null && data.reference_density !== undefined) {
+            note += ` — ${data.reference_density} known system${data.reference_density === 1 ? "" : "s"} in this sector`;
+            if (data.reference_density < 5) {
+              note += ". Warning: very sparse sector, actual distances may be significantly higher than shown.";
+              reference.style.color = "red";
+            } else if (data.reference_density < 20) {
+              note += ". Sparse sector — treat distances as rough estimates.";
+              reference.style.color = "orange";
+            }
+          }
+          reference.textContent = note;
         }
 
         data.results.forEach((r, i) => {

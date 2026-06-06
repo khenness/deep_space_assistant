@@ -6,10 +6,14 @@ procedural naming structure (sector, boxel, mass code) as search levels.
 Usage:
     python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --results 5
     python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --results 5 --gather
+    python find_nearby_systems.py --system "Stuemeae FG-Y d7561" --results 5 --gather --note "near neutron highway"
 
 Procedural name structure (community-researched, not official):
     Stuemeae   FG-Y   d   7561
     [sector]  [boxel] [mass code] [sequence]
+
+    Some systems have hyphenated sequences e.g. JUENAE SL-K D9-3226
+    where the full sequence is "9-3226".
 
 Mass code approximate boxel sizes:
     a=10ly  b=20ly  c=40ly  d=80ly  e=160ly  f=320ly  g=640ly  h=1280ly
@@ -17,7 +21,6 @@ Mass code approximate boxel sizes:
 
 import argparse
 import csv
-import math
 import re
 import sys
 import time
@@ -39,13 +42,12 @@ MASS_CODE_SIZE_LY = {
 }
 
 
-
 @dataclass
 class ParsedName:
     sector: str
     boxel: str
     mass_code: str
-    sequence: str
+    sequence: str  # may be hyphenated e.g. "9-3226"
     raw: str
 
     @property
@@ -57,15 +59,14 @@ def parse_system_name(name: str) -> ParsedName:
     """
     Attempt to parse an ED procedural system name into components.
 
-    Expected format: "Sector XX-X x#### [extra]"
-    Examples:
-        "Stuemeae FG-Y d7561"     -> sector=Stuemeae, boxel=FG-Y, mass_code=d, sequence=7561
-        "Dryau Ausms KG-Y e4912"  -> sector=Dryau Ausms, boxel=KG-Y, mass_code=e, sequence=4912
+    Handles both standard and hyphenated sequence formats:
+        "Stuemeae FG-Y d7561"     -> sequence="7561"
+        "Juenae SL-K d9-3226"     -> sequence="9-3226"
 
     Returns a ParsedName with empty strings for components if parsing fails.
     """
-    # Pattern: one or more words (sector), then XX-X boxel, then letter+digits
-    pattern = r"^(.+?)\s+([A-Z]{2}-[A-Z])\s+([a-h])(\d+)(.*)$"
+    # Sequence can be plain digits or digits-digits (hyphenated variant)
+    pattern = r"^(.+?)\s+([A-Z]{2}-[A-Z])\s+([a-h])(\d+(?:-\d+)?)(.*)$"
     m = re.match(pattern, name.strip(), re.IGNORECASE)
     if m:
         return ParsedName(
@@ -82,15 +83,12 @@ def build_search_levels(parsed: ParsedName) -> list[dict]:
     """
     Build ordered search levels for a parsed procedural name.
 
-    Strategy: strip sequence digits one at a time first (staying within the same
+    Strategy: strip sequence characters one at a time first (staying within
     sector+boxel+masscode), then widen to sector+boxel, then sector-only.
-
-    This means we search d756%, d75%, d7%, d%, then FG-Y %, then Stuemeae %.
-    Sequence-stripped searches return the spatially tightest cluster first.
     """
     levels = []
 
-    # Level 1: strip sequence digits one at a time (same sector+boxel+masscode)
+    # Level 1: strip sequence chars one at a time (same sector+boxel+masscode)
     seq = parsed.sequence
     while seq:
         seq = seq[:-1]
@@ -135,9 +133,8 @@ def edsm_prefix_search(prefix: str) -> list[dict]:
 
 def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
     """
-    Search EDSM at each structural level (sector+boxel+masscode, sector+boxel, sector)
-    until we have enough results. Returns up to num_results matches sorted by
-    match level (most specific first).
+    Search EDSM at each structural level until we have enough results.
+    Returns up to num_results matches sorted by match level (most specific first).
     """
     parsed = parse_system_name(system_name)
 
@@ -147,10 +144,12 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
         size_hint = MASS_CODE_SIZE_LY.get(parsed.mass_code, "?")
         print(f"  Parsed: sector='{parsed.sector}' boxel='{parsed.boxel}' "
               f"mass_code='{parsed.mass_code}' (~{size_hint} ly boxel) sequence='{parsed.sequence}'")
+        if "-" in parsed.sequence:
+            print(f"  Note: hyphenated sequence detected ('{parsed.sequence}') — sequence_distance will not be calculated")
     else:
         print("  Warning: could not parse as a procedural name — falling back to character prefix stripping")
 
-    seen = {}  # system name -> result dict
+    seen = {}
     api_calls = 0
 
     if parsed.is_procedural:
@@ -191,29 +190,18 @@ def find_nearby_systems(system_name: str, num_results: int) -> list[dict]:
 
     print(f"\nSearch complete using {api_calls} API call{'s' if api_calls != 1 else ''}.")
 
-    # Within each match level, sort by sequence number proximity to the input system.
-    # Hypothesis: nearby sequence numbers = nearby spatial position within a boxel.
-    # This is unverified — tonight's data gathering will test it.
-    input_seq = int(parsed.sequence) if parsed.sequence.isdigit() else None
+    # Sort by level_index only — sequence distance not a reliable proximity signal
+    sorted_results = sorted(seen.values(), key=lambda r: r["level_index"])
 
-    # Results are already keyed by the level index they were found at (insertion order).
-    # Sort by (level_index, sequence_distance) — closest structural match first.
-    def sort_key(result):
-        seq_distance = 0
-        if input_seq is not None:
-            m = re.search(r"(\d+)\s*$", result["name"])
-            if m:
-                seq_distance = abs(int(m.group(1)) - input_seq)
-        return (result["level_index"], seq_distance)
-
-    sorted_results = sorted(seen.values(), key=sort_key)
-
-    # Attach sequence distance to each result for the CSV
-    for result in sorted_results:
-        if input_seq is not None:
+    # Attach sequence_distance where calculable (plain integer sequences only)
+    try:
+        input_seq = int(parsed.sequence)
+        for result in sorted_results:
             m = re.search(r"(\d+)\s*$", result["name"])
             result["sequence_distance"] = abs(int(m.group(1)) - input_seq) if m else None
-        else:
+    except ValueError:
+        # Hyphenated or non-integer sequence — skip
+        for result in sorted_results:
             result["sequence_distance"] = None
 
     return sorted_results[:num_results]
@@ -229,7 +217,7 @@ def _character_prefix_levels(system_name: str) -> list[dict]:
     return levels
 
 
-def gather_mode(system_name: str, matches: list[dict]) -> None:
+def gather_mode(system_name: str, matches: list[dict], note: str = "") -> None:
     """Prompt user for in-game distances and append results to CSV."""
     print("\n--- Data Gathering Mode ---")
     print("Enter the in-game distance (ly) to each system (press Enter to skip).\n")
@@ -259,6 +247,7 @@ def gather_mode(system_name: str, matches: list[dict]) -> None:
                     "search_prefix": match["search_prefix"],
                     "sequence_distance": match.get("sequence_distance"),
                     "measured_distance_ly": distance_ly,
+                    "notes": note,
                 })
                 break
             except ValueError:
@@ -300,6 +289,11 @@ def main():
         action="store_true",
         help="Enable data gathering mode: prompts for in-game distances and saves to CSV",
     )
+    parser.add_argument(
+        "--note",
+        default="",
+        help='Optional note to tag all rows in this session e.g. "near neutron highway"',
+    )
     args = parser.parse_args()
 
     matches = find_nearby_systems(args.system, args.results)
@@ -312,7 +306,7 @@ def main():
         print(f"  {i}. {m['name']}  [{m['match_level']}]")
 
     if args.gather:
-        gather_mode(args.system, matches)
+        gather_mode(args.system, matches, note=args.note)
     else:
         print("\nTip: re-run with --gather to record in-game distances for analysis.")
 

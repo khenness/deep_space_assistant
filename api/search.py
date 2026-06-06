@@ -82,8 +82,8 @@ def find_nearby(
 
         prefix = level["prefix"]
         rows = db.execute(
-            "SELECT name FROM systems WHERE name LIKE ? AND sector IS NOT NULL",
-            (prefix + "%",),
+            "SELECT name FROM systems WHERE name LIKE ? AND sector IS NOT NULL LIMIT ?",
+            (prefix + "%", num_results * 10),
         ).fetchall()
 
         for (name,) in rows:

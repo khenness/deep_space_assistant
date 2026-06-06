@@ -1,10 +1,15 @@
 import sqlite3
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .database import get_db
 from .models import NearbyResponse, NearbySystem
 from .search import find_nearby
+
+FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
 app = FastAPI(
     title="Deep Space Assistant",
@@ -33,3 +38,8 @@ def get_nearby(
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/")
+def index():
+    return FileResponse(FRONTEND_DIR / "index.html")

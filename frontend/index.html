@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Deep Space Assistant</title>
+  <style>
+    body { font-family: monospace; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    input { width: 100%; padding: 8px; font-family: monospace; font-size: 1em; box-sizing: border-box; }
+    button { margin-top: 8px; padding: 8px 16px; font-family: monospace; font-size: 1em; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ccc; }
+    th { background: #f0f0f0; }
+    #error { color: red; margin-top: 16px; }
+    #status { margin-top: 16px; color: #666; }
+  </style>
+</head>
+<body>
+
+  <h1>Deep Space Assistant</h1>
+  <p>Enter an undiscovered system name to find nearby known systems.</p>
+
+  <input id="system-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
+  <br>
+  <button onclick="search()">Search</button>
+
+  <div id="status"></div>
+  <div id="error"></div>
+  <table id="results-table" style="display:none">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>System</th>
+        <th>Match level</th>
+        <th>Confidence</th>
+        <th>Typical range</th>
+      </tr>
+    </thead>
+    <tbody id="results-body"></tbody>
+  </table>
+
+  <script>
+    document.getElementById("system-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") search();
+    });
+
+    async function search() {
+      const system = document.getElementById("system-input").value.trim();
+      const status = document.getElementById("status");
+      const error = document.getElementById("error");
+      const table = document.getElementById("results-table");
+      const body = document.getElementById("results-body");
+
+      error.textContent = "";
+      body.innerHTML = "";
+      table.style.display = "none";
+
+      if (!system) {
+        error.textContent = "Please enter a system name.";
+        return;
+      }
+
+      status.textContent = "Searching...";
+
+      try {
+        const resp = await fetch(`/nearby?system=${encodeURIComponent(system)}&results=10`);
+        const data = await resp.json();
+
+        status.textContent = "";
+
+        if (!resp.ok) {
+          error.textContent = data.detail || "Something went wrong.";
+          return;
+        }
+
+        if (data.results.length === 0) {
+          status.textContent = "No known systems found near " + system + ".";
+          return;
+        }
+
+        data.results.forEach((r, i) => {
+          const row = body.insertRow();
+          row.insertCell().textContent = i + 1;
+          row.insertCell().textContent = r.name;
+          row.insertCell().textContent = r.match_level;
+          row.insertCell().textContent = r.confidence;
+          row.insertCell().textContent = r.typical_range_ly;
+        });
+
+        table.style.display = "table";
+      } catch (e) {
+        status.textContent = "";
+        error.textContent = "Could not reach the API. Is the server running?";
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,26 +1,26 @@
-timestamp,input_system,input_sector,input_boxel,input_mass_code,input_sequence,matched_system,match_level,search_prefix,sequence_distance,measured_distance_ly
-2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3665,sector+boxel+masscode,PHUA AUB RG-Y d36,13,73.47
-2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3601,sector+boxel+masscode,PHUA AUB RG-Y d36,77,73.67
-2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3774,sector+boxel+masscode,PHUA AUB RG-Y d3,96,79.14
-2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3810,sector+boxel+masscode,PHUA AUB RG-Y d3,132,57.25
-2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3922,sector+boxel+masscode,PHUA AUB RG-Y d3,244,59.98
-2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9,Juenae SL-K d9-3625,sector+boxel+masscode,JUENAE SL-K d,3616,21.72
-2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9,Juenae SL-K d9-8813,sector+boxel+masscode,JUENAE SL-K d,8804,10.91
-2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9,Juenae SL-K d9-9231,sector+boxel+masscode,JUENAE SL-K d,9222,45.03
-2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9,Juenae AA-A a96-9,sector,JUENAE ,0,393.87
-2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9,Juenae AA-A h9,sector,JUENAE ,0,961.53
-2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A f25,sector,BYOOMI ,0,1370.02
-2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h25,sector,BYOOMI ,0,1167.53
-2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h24,sector,BYOOMI ,1,1009.39
-2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h26,sector,BYOOMI ,1,920.6
-2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-Q b25-26,sector,BYOOMI ,1,640.27
-2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-1376,sector+boxel+masscode,BYOOMI IY-G d1,1365,72.85
-2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-3623,sector+boxel+masscode,BYOOMI IY-G d1,3612,87.6
-2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-6843,sector+boxel+masscode,BYOOMI IY-G d1,6832,53.87
-2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-7858,sector+boxel+masscode,BYOOMI IY-G d1,7847,75.46
-2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-8716,sector+boxel+masscode,BYOOMI IY-G d1,8705,104.13
-2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c24-447,sector+boxel+masscode,PHROI FLYUAE IV-I c2,423,14.54
-2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-3444,sector+boxel+masscode,PHROI FLYUAE IV-I c,3420,689.32
-2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-3921,sector+boxel+masscode,PHROI FLYUAE IV-I c,3897,664.32
-2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-5812,sector+boxel+masscode,PHROI FLYUAE IV-I c,5788,662.4
-2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-6316,sector+boxel+masscode,PHROI FLYUAE IV-I c,6292,660.16
+timestamp,input_system,input_sector,input_boxel,input_mass_code,input_sequence,matched_system,match_level,search_prefix,sequence_distance,measured_distance_ly,notes
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3665,sector+boxel+masscode,PHUA AUB RG-Y d36,13,73.47,Galactic Centre region
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3601,sector+boxel+masscode,PHUA AUB RG-Y d36,77,73.67,Galactic Centre region
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3774,sector+boxel+masscode,PHUA AUB RG-Y d3,96,79.14,Galactic Centre region
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3810,sector+boxel+masscode,PHUA AUB RG-Y d3,132,57.25,Galactic Centre region
+2026-06-05T19:49:28.658859+00:00,PHUA AUB RG-Y D3678,PHUA AUB,RG-Y,d,3678,Phua Aub RG-Y d3922,sector+boxel+masscode,PHUA AUB RG-Y d3,244,59.98,Galactic Centre region
+2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9-3226,Juenae SL-K d9-3625,sector+boxel+masscode,JUENAE SL-K d,,,Galactic Centre region; sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)
+2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9-3226,Juenae SL-K d9-8813,sector+boxel+masscode,JUENAE SL-K d,,,Galactic Centre region; sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)
+2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9-3226,Juenae SL-K d9-9231,sector+boxel+masscode,JUENAE SL-K d,,,Galactic Centre region; sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)
+2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9-3226,Juenae AA-A a96-9,sector,JUENAE ,,,Galactic Centre region; sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)
+2026-06-05T20:13:45.836328+00:00,JUENAE SL-K D9-3226,JUENAE,SL-K,d,9-3226,Juenae AA-A h9,sector,JUENAE ,,,Galactic Centre region; sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)
+2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A f25,sector,BYOOMI ,0,1370.02,Galactic Core boundary; no sector+boxel+masscode results found (sparse EDSM coverage)
+2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h25,sector,BYOOMI ,0,1167.53,Galactic Core boundary; no sector+boxel+masscode results found (sparse EDSM coverage)
+2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h24,sector,BYOOMI ,1,1009.39,Galactic Core boundary; no sector+boxel+masscode results found (sparse EDSM coverage)
+2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-A h26,sector,BYOOMI ,1,920.6,Galactic Core boundary; no sector+boxel+masscode results found (sparse EDSM coverage)
+2026-06-05T20:51:26.701125+00:00,BYOOMI EP-I C25-5880,BYOOMI,EP-I,c,25,Byoomi AA-Q b25-26,sector,BYOOMI ,1,640.27,Galactic Core boundary; no sector+boxel+masscode results found (sparse EDSM coverage)
+2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-1376,sector+boxel+masscode,BYOOMI IY-G d1,1365,72.85,Galactic Core boundary; undiscovered neutron star
+2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-3623,sector+boxel+masscode,BYOOMI IY-G d1,3612,87.6,Galactic Core boundary; undiscovered neutron star
+2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-6843,sector+boxel+masscode,BYOOMI IY-G d1,6832,53.87,Galactic Core boundary; undiscovered neutron star
+2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-7858,sector+boxel+masscode,BYOOMI IY-G d1,7847,75.46,Galactic Core boundary; undiscovered neutron star
+2026-06-05T21:03:34.160657+00:00,BYOOMI IY-G D11-5408,BYOOMI,IY-G,d,11,Byoomi IY-G d11-8716,sector+boxel+masscode,BYOOMI IY-G d1,8705,104.13,Galactic Core boundary; undiscovered neutron star
+2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c24-447,sector+boxel+masscode,PHROI FLYUAE IV-I c2,423,14.54,Odin's Hold region; undiscovered class G star
+2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-3444,sector+boxel+masscode,PHROI FLYUAE IV-I c,3420,689.32,Odin's Hold region; undiscovered class G star; matched system in different sub-boxel (c11 vs c24)
+2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-3921,sector+boxel+masscode,PHROI FLYUAE IV-I c,3897,664.32,Odin's Hold region; undiscovered class G star; matched system in different sub-boxel (c11 vs c24)
+2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-5812,sector+boxel+masscode,PHROI FLYUAE IV-I c,5788,662.4,Odin's Hold region; undiscovered class G star; matched system in different sub-boxel (c11 vs c24)
+2026-06-05T21:35:14.768931+00:00,PHROI FLYUAE IV-I C24-3143,PHROI FLYUAE,IV-I,c,24,Phroi Flyuae IV-I c11-6316,sector+boxel+masscode,PHROI FLYUAE IV-I c,6292,660.16,Odin's Hold region; undiscovered class G star; matched system in different sub-boxel (c11 vs c24)

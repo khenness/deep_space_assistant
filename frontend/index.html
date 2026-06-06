@@ -7,6 +7,7 @@
     body { font-family: monospace; max-width: 900px; margin: 40px auto; padding: 0 20px; }
     input { width: 100%; padding: 8px; font-family: monospace; font-size: 1em; box-sizing: border-box; }
     button { margin-top: 8px; padding: 8px 16px; font-family: monospace; font-size: 1em; cursor: pointer; }
+    .search-bar { margin-bottom: 16px; }
     .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
     .tab { padding: 8px 16px; cursor: pointer; border: 1px solid #ccc; background: #f0f0f0; font-family: monospace; }
     .tab.active { background: #fff; border-bottom-color: #fff; font-weight: bold; }
@@ -24,6 +25,10 @@
 
   <h1>Deep Space Assistant</h1>
 
+  <div class="search-bar">
+    <input id="system-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
+  </div>
+
   <div class="tabs">
     <button class="tab active" onclick="switchTab('nearby')">Find Nearby Discovered Systems</button>
     <button class="tab" onclick="switchTab('dssa')">Find DSSA Carrier</button>
@@ -32,8 +37,6 @@
   <!-- Nearby Systems Panel -->
   <div id="panel-nearby" class="panel active">
     <p>Find known discovered systems near an undiscovered system.</p>
-    <input id="nearby-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
-    <br>
     Results: <input id="nearby-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
     <button onclick="searchNearby()">Search</button>
     <div id="nearby-status"></div>
@@ -49,8 +52,6 @@
   <!-- DSSA Carrier Panel -->
   <div id="panel-dssa" class="panel">
     <p>Find the nearest DSSA fleet carriers. Works with undiscovered systems.</p>
-    <input id="dssa-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
-    <br>
     Results: <input id="dssa-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
     <button onclick="searchDSSA()">Search</button>
     <div id="dssa-status"></div>
@@ -73,11 +74,20 @@
       document.getElementById('panel-' + name).classList.add('active');
     }
 
-    document.getElementById("nearby-input").addEventListener("keydown", e => { if (e.key === "Enter") searchNearby(); });
-    document.getElementById("dssa-input").addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
+    document.getElementById("system-input").addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        const active = document.querySelector('.panel.active').id;
+        if (active === 'panel-nearby') searchNearby();
+        else searchDSSA();
+      }
+    });
+
+    function getSystem() {
+      return document.getElementById("system-input").value.trim();
+    }
 
     async function searchNearby() {
-      const system = document.getElementById("nearby-input").value.trim();
+      const system = getSystem();
       const status = document.getElementById("nearby-status");
       const error = document.getElementById("nearby-error");
       const table = document.getElementById("nearby-table");
@@ -111,7 +121,7 @@
     }
 
     async function searchDSSA() {
-      const system = document.getElementById("dssa-input").value.trim();
+      const system = getSystem();
       const status = document.getElementById("dssa-status");
       const error = document.getElementById("dssa-error");
       const reference = document.getElementById("dssa-reference");

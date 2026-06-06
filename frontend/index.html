@@ -58,7 +58,7 @@
     <div id="dssa-reference" class="reference-note"></div>
     <table id="dssa-table" style="display:none">
       <thead>
-        <tr><th>#</th><th>Carrier</th><th>Callsign</th><th>System</th><th>Region</th><th>Distance</th><th>Services</th></tr>
+        <tr><th>#</th><th>Carrier</th><th>Callsign</th><th>System</th><th>Region</th><th>Distance</th><th>Services</th><th>Confidence</th><th>Distance error</th></tr>
       </thead>
       <tbody id="dssa-body"></tbody>
     </table>
@@ -149,6 +149,8 @@
             ? (approximate ? "~" : "") + r.distance_ly.toLocaleString() + " ly"
             : "unknown";
           row.insertCell().textContent = r.services.join(", ");
+          row.insertCell().textContent = approximate ? data.reference_confidence : "exact";
+          row.insertCell().textContent = approximate ? data.reference_error_ly : "—";
         });
         table.style.display = "table";
       } catch (e) {

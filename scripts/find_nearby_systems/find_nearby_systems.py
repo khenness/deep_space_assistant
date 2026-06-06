@@ -33,7 +33,7 @@ import requests
 EDSM_SYSTEMS_URL = "https://www.edsm.net/api-v1/systems"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_FILE = REPO_ROOT / "data" / "distance_data.csv"
-REQUEST_DELAY = 0.5  # seconds between EDSM requests
+REQUEST_DELAY = 2.0  # seconds between EDSM requests
 
 # Approximate boxel diameter in ly per mass code (community research, unverified)
 MASS_CODE_SIZE_LY = {

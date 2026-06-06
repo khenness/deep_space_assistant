@@ -77,13 +77,16 @@ class TestFindNearestDSSA:
         assert isinstance(results["results"][0]["services"], list)
 
     def test_undiscovered_system_uses_reference(self, db):
-        # "Zunou GS-B d999" isn't in systems table — should use nearby known system
         results = find_nearest_dssa("Zunou GS-B d999", db)
         assert results["reference_system"] is not None
+        assert results["reference_confidence"] in ("high", "medium", "low")
+        assert results["reference_error_ly"] is not None
 
     def test_known_system_has_no_reference(self, db):
         results = find_nearest_dssa("Colonia", db)
         assert results["reference_system"] is None
+        assert results["reference_confidence"] is None
+        assert results["reference_error_ly"] is None
 
     def test_unknown_system_no_nearby_returns_empty(self, db):
         results = find_nearest_dssa("Completely Unknown Sector AA-B c1-0", db)

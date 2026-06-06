@@ -133,8 +133,9 @@
           return;
         }
 
-        if (data.reference_system) {
-          reference.textContent = `Distances calculated from nearest known system: ${data.reference_system}`;
+        const approximate = !!data.reference_system;
+        if (approximate) {
+          reference.textContent = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
         }
 
         data.results.forEach((r, i) => {
@@ -144,7 +145,9 @@
           row.insertCell().textContent = r.callsign;
           row.insertCell().textContent = r.system_name;
           row.insertCell().textContent = r.region;
-          row.insertCell().textContent = r.distance_ly !== null ? r.distance_ly.toLocaleString() + " ly" : "unknown";
+          row.insertCell().textContent = r.distance_ly !== null
+            ? (approximate ? "~" : "") + r.distance_ly.toLocaleString() + " ly"
+            : "unknown";
           row.insertCell().textContent = r.services.join(", ");
         });
         table.style.display = "table";

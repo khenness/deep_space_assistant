@@ -56,6 +56,8 @@ def get_nearest_dssa(
     return DSSAResponse(
         input_system=system,
         reference_system=data["reference_system"],
+        reference_confidence=data["reference_confidence"],
+        reference_error_ly=data["reference_error_ly"],
         results=[DSSACarrier(**r) for r in data["results"]],
     )
 

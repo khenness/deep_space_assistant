@@ -139,15 +139,20 @@ def find_nearest_dssa(
     reference_system = system_name
 
     # If not found (undiscovered system), find a nearby known reference
+    reference_confidence = "exact"
+    reference_error_ly = None
     if not coords:
         nearby = find_nearby(system_name, db, num_results=1)
         if not nearby:
-            return {"reference_system": None, "results": []}
-        reference_system = nearby[0]["name"]
+            return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "results": []}
+        best = nearby[0]
+        reference_system = best["name"]
+        reference_confidence = best["confidence"]
+        reference_error_ly = "± " + best["typical_range_ly"]
         coords = _get_system_coords(reference_system, db)
 
     if not coords:
-        return {"reference_system": None, "results": []}
+        return {"reference_system": None, "reference_confidence": None, "reference_error_ly": None, "results": []}
 
     rx, ry, rz = coords
 
@@ -166,7 +171,10 @@ def find_nearest_dssa(
         })
 
     results.sort(key=lambda r: r["distance_ly"])
+    is_approximate = reference_system != system_name
     return {
-        "reference_system": reference_system if reference_system != system_name else None,
+        "reference_system": reference_system if is_approximate else None,
+        "reference_confidence": reference_confidence if is_approximate else None,
+        "reference_error_ly": reference_error_ly if is_approximate else None,
         "results": results[:num_results],
     }

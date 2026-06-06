@@ -28,4 +28,6 @@ class DSSACarrier(BaseModel):
 class DSSAResponse(BaseModel):
     input_system: str
     reference_system: str | None
+    reference_confidence: str | None  # "exact", "high", "medium", "low"
+    reference_error_ly: str | None    # human-readable margin e.g. "± 50 ly"
     results: list[DSSACarrier]

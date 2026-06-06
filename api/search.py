@@ -78,13 +78,17 @@ def _find_nearby_named(
     sx, sy, sz = coords
     radius = 200.0
 
-    # Bounding box narrows via idx_x; Euclidean filter happens in Python
+    # Bounding box narrows via idx_xyz; Euclidean filter happens in Python.
+    # LIMIT is generous (num_results * 50) since we still need to sort by
+    # distance and discard corners of the box — but caps the fetch near
+    # dense regions like Sol where the box contains thousands of systems.
     candidates = db.execute(
         "SELECT name, x, y, z FROM systems "
         "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
-        "AND name != ? COLLATE NOCASE",
+        "AND name != ? COLLATE NOCASE "
+        "LIMIT ?",
         (sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
-         system_name),
+         system_name, num_results * 50),
     ).fetchall()
 
     results = []

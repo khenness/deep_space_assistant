@@ -34,6 +34,7 @@
     <p>Find known EDSM systems near an undiscovered system.</p>
     <input id="nearby-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
     <br>
+    Results: <input id="nearby-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
     <button onclick="searchNearby()">Search</button>
     <div id="nearby-status"></div>
     <div id="nearby-error"></div>
@@ -50,6 +51,7 @@
     <p>Find the nearest DSSA fleet carriers. Works with undiscovered systems.</p>
     <input id="dssa-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
     <br>
+    Results: <input id="dssa-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
     <button onclick="searchDSSA()">Search</button>
     <div id="dssa-status"></div>
     <div id="dssa-error"></div>
@@ -86,7 +88,8 @@
       status.textContent = "Searching...";
 
       try {
-        const resp = await fetch(`/nearby?system=${encodeURIComponent(system)}&results=10`);
+        const limit = parseInt(document.getElementById("nearby-limit").value) || 10;
+        const resp = await fetch(`/nearby?system=${encodeURIComponent(system)}&results=${limit}`);
         const data = await resp.json();
         status.textContent = "";
         if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
@@ -120,7 +123,8 @@
       status.textContent = "Searching...";
 
       try {
-        const resp = await fetch(`/dssa/nearest?system=${encodeURIComponent(system)}&results=10`);
+        const limit = parseInt(document.getElementById("dssa-limit").value) || 10;
+        const resp = await fetch(`/dssa/nearest?system=${encodeURIComponent(system)}&results=${limit}`);
         const data = await resp.json();
         status.textContent = "";
         if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }

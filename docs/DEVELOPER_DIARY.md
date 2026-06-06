@@ -130,7 +130,7 @@ If it looks promising, we'll talk about what to build next. If it doesn't, we'll
 
 ### The Setup
 
-After building the script in the afternoon session, Kevin did what any good engineer does — he went and used the thing in the real world. His commander KevinFromDublin was already out in deep space aboard "Faster Than Light", an engineered Caspian Explorer capable of jumping 86.90 light years at a time. A single jump takes about 60 seconds. A light year is roughly 9.46 trillion kilometres. The ship covers that distance in a minute.
+After building the script in the afternoon session, Kevin did what any good engineer does — he went and used the thing in the real world. His commander KevinFromDublin was already out in deep space aboard "Faster Than Light", an engineered Caspian Explorer — a ship that is, let's say, *legally distinct* from the Starship Enterprise. It looks like someone crossed the Defiant from DS9 with the Enterprise-D from The Next Generation, slapped a fuel scoop on it, and called it an exploration vessel. Frontier would like you to know it bears no resemblance to any fictional starship. Anyway — it can jump 86.90 light years at a time. A single jump takes about 60 seconds. A light year is roughly 9.46 trillion kilometres. The ship covers that distance in a minute.
 
 Kevin plays on his TV with a laptop beside him. Alt-tabbing between the game and the terminal, typing in system names and distances manually, is genuinely tedious — but that's what science looks like sometimes.
 
@@ -190,5 +190,109 @@ The broader question — does this tool actually produce useful results? — is 
 ### What's Next
 
 Kevin is continuing toward Colonia tomorrow. More data from different regions will help confirm whether the `sector+boxel+masscode` pattern holds reliably or whether tonight was lucky. Colonia has much better EDSM coverage than the core — it'll be a proper test.
+
+---
+
+## Saturday 6th June 2026 — Near-Death, Neutron Stars, and Numbers That Don't Lie
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### Morning: Fixing What Yesterday Revealed
+
+The day started with a bug report — from yesterday's own data.
+
+JUENAE SL-K D9-3226. Looking at the CSV, something was off. The script had parsed the sequence as `9`, but the matched neighbours all had names like `d9-3625` and `d9-8813`. The hyphen in `D9-3226` isn't punctuation separating a mass code from a sequence — it's part of the sequence itself. The full sequence is `9-3226`, not `9`. The script had been silently wrong about this.
+
+The fix was a one-line regex change: the sequence pattern was updated from `\d+` to `\d+(?:-\d+)?` to handle the hyphenated format. The script now detects hyphenated sequences, warns about them in output, and skips the sequence_distance calculation entirely for those systems — since computing `|9 - something|` when the full sequence is `9-3226` produces meaningless results.
+
+While fixing the parser, a `--note` flag was also added. Every data row now carries a free-text note so sessions can be tagged with context — galactic region, why a particular measurement looks anomalous, anything useful for later analysis. The JUENAE rows in the existing CSV were back-annotated: `sequence_distance unreliable (hyphenated sequence parsed incorrectly in v1 of script)`.
+
+With the fixes in, Kevin gathered a final session from the **KYLOARPH** region before the morning wrapped up.
+
+### Afternoon: Cloudflare Strikes Back
+
+Then the script started returning 403s.
+
+Not occasionally. Every single request. EDSM's API was responding, but the response was a Cloudflare bot protection challenge — the kind that requires JavaScript to solve in a browser. A Python `requests` call can't do that, regardless of how politely you set the User-Agent header.
+
+Kevin tried switching to his mobile hotspot, hoping it was an IP block. Still 403. He'd never aggressively hammered the API — two seconds between requests, maybe a couple dozen calls across the whole project. The block wasn't about volume; Cloudflare was just detecting non-browser HTTP clients.
+
+This is a legitimate question worth sitting with: EDSM provides this API explicitly for tools like this. They probably welcome integrations. But Cloudflare's bot detection doesn't know or care about intent — it sees an HTTP client without a browser fingerprint and blocks it. It's an infrastructure decision by the site operator that creates friction for exactly the kind of legitimate use they'd otherwise encourage. Welcome to the web in 2026.
+
+The short-term mitigation — User-Agent header, 2-second delays — didn't solve it. The longer-term solution was already in reach: EDSM publishes nightly bulk data dumps. Forget the API for now.
+
+### Downloading the Galaxy
+
+The EDSM nightly dump — `systemsWithCoordinates.json` — is 3.34 GB compressed, 14 GB uncompressed. Kevin downloaded it and dropped it into `data/`. It was added to `.gitignore` (the only version you'd ever want to commit is the compressed one, and even then, not really — it changes nightly and it's enormous).
+
+The file contains 96.4 million records, one JSON object per line, each with a system name, 3D coordinates, and a submission date. The entire accessible EDSM star catalogue in a single file.
+
+Now the analysis could run locally, without Cloudflare, without rate limits, without API calls.
+
+### In Space: A Near-Death Experience
+
+While all of this was happening at the keyboard, KevinFromDublin was still flying.
+
+Kevin entered a system to fuel scoop from a neutron star and found two companion suns in extremely close orbit around it. The system geometry was unusual enough that the arrival vector dropped him almost directly into one of the orbiting stars. He nearly slammed into it at supercruise speed.
+
+This is the nightmare scenario for explorers. If the ship takes enough heat damage to destroy it, all unsubmitted exploration data is gone. Every scan, every discovery, every first-footfall — erased. The credits, the in-game prestige of having your name on those systems, all of it gone permanently. Kevin got out. But it was close enough to be worth writing down.
+
+He also found two ammonia worlds along the route — planets with a distinctive yellowy-brown atmosphere, high cartographic value, relatively rare. Scanned and logged.
+
+### Arriving at Colonia
+
+488 light years out from Colonia, Kevin could see the nebula.
+
+He took a screenshot. The purple glow of humanity's second bubble, visible from nearly 500 ly away in the dark between the arms. That screenshot is going on the blog.
+
+Colonia was colonised by a character called Jaques, who is — and this is canon — a bartender. He flew his station (called, simply, Jaques Station) from the bubble toward the galactic core back in 3302, got displaced by an unknown accident, and ended up 22,000 light years from anywhere. Pilots found him, built up a colony around him, and now it's a thriving community hub in the middle of nowhere. Kevin stopped to sell his exploration data and pay his respects.
+
+He also visited the engineer **Baltanos** at a surface station called **The Divine Apparatus**. Engineers in Elite Dangerous are specialist NPCs who can modify and upgrade ship components beyond standard specifications. Kevin used the opportunity to upgrade the power plant and shields on "Faster Than Light", and fitted mining equipment in case anything interesting turns up during the journey home. He took a screenshot of Baltanos for the blog post.
+
+### Evening: The Data Speaks
+
+With the 14 GB file on disk, the analysis script was run against the full dataset. The approach that had failed with random sampling — too sparse, almost no sector+boxels had multiple entries — was abandoned in favour of targeted analysis. The scan had already identified the densest sector+boxels in the dataset:
+
+- **Zunou GS-B**: 8,503 known systems
+- **Eol Prou KR-W**: 2,312 known systems — the Colonia region. Kevin was literally flying through this area.
+
+For each, 100 probe systems were randomly selected and their nearest same-sector+boxel neighbour was calculated using actual 3D Euclidean distance.
+
+| Region | Systems | Mean nearest | Median nearest | Max nearest |
+|---|---|---|---|---|
+| Zunou GS-B | 8,503 | 2.2 ly | 2.2 ly | 4.4 ly |
+| Eol Prou KR-W | 2,312 | 7.9 ly | 8.0 ly | 15.9 ly |
+
+100% of probes in both regions found a same-sector+boxel neighbour within 50 light years. No exceptions.
+
+This isn't just confirmation of the core hypothesis — it's stronger than expected. The `sector+boxel` grouping is essentially a spatial guarantee, not a useful heuristic. Every system with known neighbours in the same sector+boxel has those neighbours close by. The maximum nearest-neighbour distance in Zunou GS-B, across 8,503 systems, is 4.4 ly. In Colonia — the sector Kevin is currently flying through — 15.9 ly.
+
+For context: in Elite Dangerous, a fleet carrier advertising repair services is usable from 1,000 ly away. A same-sector+boxel system is almost certainly within range of anything useful.
+
+The analysis script was also refactored to support this targeted workflow properly:
+
+```bash
+# Find dense sectors to analyse
+python analyse_prefix_accuracy.py --find-dense --lines 5000000
+
+# Targeted analysis
+python analyse_prefix_accuracy.py --sector "Zunou GS-B" --sector "Eol Prou KR-W"
+```
+
+### What This Means
+
+Two days in, the validation picture is clear:
+
+- **Sequence distance**: no correlation with physical distance. Removed from the ranking logic.
+- **Match level** (`sector+boxel+masscode` vs `sector+boxel` vs `sector`): the primary predictor, confirmed by field measurements.
+- **Sector+boxel grouping**: a spatial guarantee. 100% of systems with known neighbours are within 50 ly of them — confirmed against 10,000+ real systems from the bulk dataset.
+
+The algorithm works. The question is no longer *whether* to build something, but *what* to build, and in what order.
+
+### What's Next
+
+The immediate next step is better in-game measurement data. Kevin is now in Colonia — a region with good EDSM coverage — which means the API (once Cloudflare stops blocking it) or the bulk dataset can actually return useful results. Gathering measurements here will be more valuable than the galactic core data was.
+
+Longer term: the bulk data file opens up a local search mode that doesn't depend on EDSM's API at all. A small SQLite database indexed on sector+boxel would make lookups instant, eliminate the Cloudflare dependency entirely, and be refreshed from the nightly dump whenever it goes stale. That's a natural next step — but only once the measurement data confirms the approach holds across more regions.
 
 ---

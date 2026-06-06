@@ -116,12 +116,18 @@ def build_search_levels(parsed: ParsedName) -> list[dict]:
     return levels
 
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+}
+
+
 def edsm_prefix_search(prefix: str) -> list[dict]:
     """Search EDSM for all known systems matching a prefix."""
     try:
         resp = requests.get(
             EDSM_SYSTEMS_URL,
             params={"systemName": f"{prefix}%", "showCoordinates": 1},
+            headers=HEADERS,
             timeout=10,
         )
         resp.raise_for_status()

@@ -65,14 +65,56 @@ def _search_levels(parsed: ParsedName) -> list[dict]:
     return levels
 
 
+def _find_nearby_named(
+    system_name: str,
+    db: sqlite3.Connection,
+    num_results: int,
+) -> list[dict]:
+    """Coordinate-based radius search for hand-named systems (Sol, Colonia, etc.)."""
+    coords = _get_system_coords(system_name, db)
+    if not coords:
+        return []
+
+    sx, sy, sz = coords
+    radius = 200.0
+
+    # Bounding box narrows via idx_x; Euclidean filter happens in Python
+    candidates = db.execute(
+        "SELECT name, x, y, z FROM systems "
+        "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
+        "AND name != ? COLLATE NOCASE",
+        (sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
+         system_name),
+    ).fetchall()
+
+    results = []
+    for name, cx, cy, cz in candidates:
+        dist = math.sqrt((sx - cx) ** 2 + (sy - cy) ** 2 + (sz - cz) ** 2)
+        if dist <= radius:
+            results.append({
+                "name": name,
+                "match_level": "coordinate-radius",
+                "search_prefix": f"{system_name} ±{radius:.0f}ly",
+                "confidence": "exact",
+                "typical_range_ly": f"< {dist:.1f} ly",
+                "distance_ly": dist,
+            })
+
+    results.sort(key=lambda r: r["distance_ly"])
+    for r in results:
+        del r["distance_ly"]
+    return results[:num_results]
+
+
 def find_nearby(
     system_name: str,
     db: sqlite3.Connection,
     num_results: int = 5,
 ) -> list[dict]:
     parsed = parse_system_name(system_name)
+
     if not parsed.is_procedural:
-        return []
+        return _find_nearby_named(system_name, db, num_results)
 
     seen: dict[str, dict] = {}
 

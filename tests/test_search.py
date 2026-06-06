@@ -83,7 +83,7 @@ class TestFindNearby:
         results = find_nearby("Zunou GS-B d7561", db, num_results=5)
         assert all("Colonia" not in r["name"] for r in results)
 
-    def test_excludes_unparsed_systems(self, db):
+    def test_procedural_excludes_named_systems(self, db):
         results = find_nearby("Zunou GS-B d7561", db, num_results=5)
         assert all(r["name"] != "Sol" for r in results)
 
@@ -91,9 +91,24 @@ class TestFindNearby:
         results = find_nearby("Zunou GS-B d7561", db, num_results=2)
         assert len(results) <= 2
 
-    def test_non_procedural_returns_empty(self, db):
-        results = find_nearby("Sol", db)
+    def test_named_system_returns_coordinate_results(self, db):
+        results = find_nearby("Sol", db, num_results=5)
+        assert len(results) > 0
+        assert all(r["match_level"] == "coordinate-radius" for r in results)
+        assert all(r["confidence"] == "exact" for r in results)
+
+    def test_named_system_excludes_self(self, db):
+        results = find_nearby("Sol", db, num_results=5)
+        assert all(r["name"] != "Sol" for r in results)
+
+    def test_named_system_not_in_db_returns_empty(self, db):
+        results = find_nearby("Sagittarius A*", db)
         assert results == []
+
+    def test_named_system_only_returns_within_radius(self, db):
+        # Sol is at 0,0,0. Colonia AA-A d1 is at 999,999,999 — way outside 200ly
+        results = find_nearby("Sol", db, num_results=10)
+        assert all(r["name"] != "Colonia AA-A d1" for r in results)
 
     def test_confidence_tiers_present(self, db):
         results = find_nearby("Zunou GS-B d7561", db, num_results=5)

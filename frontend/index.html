@@ -25,13 +25,13 @@
   <h1>Deep Space Assistant</h1>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('nearby')">Find Nearby Systems</button>
+    <button class="tab active" onclick="switchTab('nearby')">Find Nearby Discovered Systems</button>
     <button class="tab" onclick="switchTab('dssa')">Find DSSA Carrier</button>
   </div>
 
   <!-- Nearby Systems Panel -->
   <div id="panel-nearby" class="panel active">
-    <p>Find known EDSM systems near an undiscovered system.</p>
+    <p>Find known discovered systems near an undiscovered system.</p>
     <input id="nearby-input" type="text" placeholder="e.g. Eol Prou KR-W d100" />
     <br>
     Results: <input id="nearby-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />

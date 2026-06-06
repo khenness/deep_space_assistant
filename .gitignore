@@ -1,5 +1,9 @@
 .venv/
 
+# Large EDSM data dumps — download separately, do not commit
+data/*.json
+data/*.json.gz
+
 # IDE
 .idea/
 .vscode/

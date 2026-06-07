@@ -101,8 +101,10 @@ def _find_nearby_named(
             for neighbour, dist in rows
         ]
 
-    # Fallback: named_neighbours not yet built, or Sgr A*-style case where named
-    # system has no named neighbours (dense procedural region). Search all systems.
+    # Fallback: named_neighbours not yet built, or system has no named neighbours
+    # (e.g. Sgr A* surrounded by procedural systems). Search all systems using
+    # progressive radii — stop as soon as we have enough results.
+    # Small radii are fast even at the galactic core; we only widen if needed.
     coords = _get_system_coords(system_name, db)
     if not coords:
         return []
@@ -110,14 +112,12 @@ def _find_nearby_named(
     sx, sy, sz = coords
     _BLOCKLIST = ("AssetViewerSystem",)
 
-    # Try named systems first within 50ly; if none found, widen to all systems at 200ly.
-    for radius, extra_filter in [(50.0, "AND sector IS NULL"), (200.0, "AND 1=1")]:
+    for radius in (5.0, 20.0, 50.0):
         fallback_rows = db.execute(
-            "SELECT name, x, y, z, "
+            "SELECT name, "
             "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
             "FROM systems "
             "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
-            f"{extra_filter} "
             "AND name != ? COLLATE NOCASE "
             "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +
             "ORDER BY dist_sq LIMIT ?",
@@ -132,10 +132,10 @@ def _find_nearby_named(
                 "match_level": "coordinate-radius",
                 "search_prefix": f"{system_name} ±{radius:.0f}ly",
                 "confidence": "exact",
-                "typical_range_ly": f"< {math.sqrt(dist_sq):.1f} ly",
+                "typical_range_ly": f"{math.sqrt(dist_sq):.1f} ly",
                 "sector_density": None,
             }
-            for name, cx, cy, cz, dist_sq in fallback_rows
+            for name, dist_sq in fallback_rows
             if math.sqrt(dist_sq) <= radius
         ]
         if results:

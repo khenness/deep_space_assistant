@@ -503,3 +503,73 @@ The import is still running in a separate window. Once it finishes, the build sc
 After that, restart the server and Sol should be sub-100ms. Sagittarius A* will return nearby procedural systems from the fallback. AssetViewerSystem will not appear anywhere. The named system path will be in the state it should have been in from the start.
 
 ---
+
+## Sunday 7th June 2026 (late night) — Tourist Attractions, Index Hints, and a Map Idea That Sneaked Up on Us
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### The Build Script That Would Not Finish
+
+The `build_named_neighbours` script had been running since the afternoon. It was stuck on a step labelled "Finding named systems with no named neighbours" — a second-pass designed to compute nearby *procedural* neighbours for isolated named systems like Sagittarius A*.
+
+Kevin's first question was reasonable: is it stuck, or just slow? The answer turned out to be both. The pass was doing 149,596 individual `SELECT 1` queries to identify which named systems had no entries in `named_neighbours`, then running a bounding box query for each isolated system it found. At the galactic core — where star density is highest and query selectivity is lowest — each bounding box query was taking seconds. There were 24,610 isolated systems. The math was grim.
+
+Before killing it, a better approach was devised: add a `--fill-isolated-neighbours` flag that only ran the second pass, so the main precomputation wouldn't have to repeat. Kevin appreciated the idea but pointed out the flag name was cryptic. It was renamed to `--isolated-systems-pass`. Clearer: it tells you exactly what it's doing.
+
+Kevin started it running and left the house at 18:15 for Loic's birthday party. He returned at 23:00 to find it still going. It was still too slow.
+
+The fundamental issue was that the second pass was trying to precompute what was better handled at query time. Isolated named systems like Sagittarius A* — surrounded by procedural systems — need a different search strategy, not more precomputation. The right answer was to drop the second pass entirely and handle isolated systems in the live fallback: a progressive radius search (5 ly, then 20 ly, then 50 ly, stopping when enough results are found) that queries all systems, named and procedural alike. This runs in about 40ms.
+
+The second pass was removed. The build script now does one thing only: precompute named neighbours for named systems. Isolated systems get handled fast at query time. No precomputation required.
+
+Kevin killed the running script and confirmed there was old junk data in the database from the aborted pass attempt. That was cleaned out before rebuilding.
+
+### Still Slow: The Index Planner's Bad Day
+
+With the build script fixed and rebuilt, Sagittarius A* was tested. Still 27 seconds.
+
+The fallback query used a three-axis bounding box on `(x, y, z)`. The `idx_xyz` composite index existed. SQLite should have used it. It didn't. Profiling revealed SQLite's query planner was choosing `idx_x` — the single-column x index — instead. For a system like Sgr A* sitting at the galactic core, the x-only index returned a narrow column of stars but then had to scan every single one of them to filter on y and z. Millions of rows.
+
+The fix was an `INDEXED BY idx_xyz` hint — SQLite-specific syntax that forces the planner to use a named index regardless of its own cost estimates. This is unusual enough to warrant a comment in the code explaining why it's there. With the hint in place, Sagittarius A* went from 27 seconds to under a second. The test suite needed updating too: the in-memory test databases didn't have `idx_xyz`, so the hint caused them to error. The index was added to both test fixtures.
+
+### Points of Interest: A New Dataset
+
+With the performance work settled, attention turned to a feature that had been on the backlog since the beginning: tourist destinations. Kevin's original vision for the tool included surfacing notable places to visit on an exploration route — nebulae, rare stellar phenomena, notable landmarks. Something to break up the long stretches of empty space between systems.
+
+The data source was EDASTRO's Galactic Exploration Catalog (GEC). Kevin pulled up the website and found it already had an API. The `/combined` endpoint returned 2,732 points of interest — the full GEC catalogue plus a secondary dataset of galactic map points — each with galactic XYZ coordinates, categories, summaries, and star ratings from the community. Exactly what was needed.
+
+A quick look at the two available endpoints showed `/combined` had 4.5x more data than `/all`. The schema was slightly heterogeneous — GEC entries had 27 fields; the map point entries had 9 — but both had coordinates and that was the critical thing. The nullable fields weren't a problem; they'd just appear as NULL in the database and the frontend would handle them gracefully.
+
+The import script followed the same pattern as the others: fetch once, write to SQLite, add indexes on `(x, y, z)` and `category`, print start and finish timestamps. One wrinkle: some entries had no `galMapSearch` field (the system name field), so the insert would fail on the `NOT NULL` constraint. The fix was a one-line fallback: use the `name` field instead. Another wrinkle: the API has a typo in one of its field names — `descriptionMardown` — which the script handles by name rather than correcting, since it has to match the actual data.
+
+The API got a new endpoint: `GET /poi/nearby`. For known systems it queries directly; for undiscovered systems it finds a reference system first, the same pattern as DSSA search. The search radius was initially set to 500 ly, which sounded reasonable until the first test — it returned 16 results. The galaxy is not dense with documented points of interest. The radius was increased to 10,000 ly, which produced a useful result set without being so large it returns distant results before nearby ones.
+
+### A New Frontend Tab
+
+The frontend gained a third tab: "Nearby Points of Interest." It has a category dropdown populated with the full list of GEC categories — Nebulae, Stellar Features, Memorials, Green Gas Giants, and so on — and shows each result's name, system, category, distance, community rating, summary, and a link back to the GEC page.
+
+The three system inputs were kept in sync: type a system name in one tab, switch to another, and the same name is there waiting. This was already the pattern from the DSSA and Nearby tabs, so the POI tab just joined the same sync group.
+
+Kevin looked at the result and asked a good question: do all three tabs have to run their searches when you first load the page? DSSA auto-searches on load because it's the first tab the user sees. But silently firing off searches for the other two tabs on page load felt wasteful — and firing them every time you switch tabs would be worse, overwriting whatever the user had just looked at.
+
+The solution: a `tabSearched` object that tracks whether each tab has been visited. On first visit, the tab auto-searches. On every subsequent visit, it stays quiet. DSSA is marked as already searched before the page load fires, so it still gets its results immediately. The other two search once on first switch, then stop. Changing the system name and hitting Search resets nothing — subsequent tab switches are still silent.
+
+### The Galaxy Map Idea
+
+The session was winding down. The POI feature was committed, the performance issues were resolved, the lazy-load tabs were working. Kevin had spent the day looking at search results — distances in light years, system names, category labels. A list.
+
+Then he said: *"Mad idea — the galaxy is a disk shape, you can represent it as a circle. Could we draw a canvas element that shows where on the galaxy you're searching?"*
+
+It's a simple observation with a surprisingly useful consequence. Right now, if two points of interest both show up at around 13,000 ly from your position, there's no way to know if they're clustered together or scattered across opposite sides of the galaxy. The table collapses a three-dimensional space into a single dimension. You can't route around that with more columns or better labels.
+
+A canvas element above the tabs — showing the searched system as a dot and the results as dots around it, plotted on a top-down view of the galaxy using the XYZ coordinates already in the database — would make that visible immediately. The coordinates are there. The data is there. It would work.
+
+The conversation got into the details: X and Z are the horizontal axes for a top-down view (Y is vertical, rarely interesting to explorers), Sol sits off-centre from the galactic core, not at (0,0,0) of the galaxy but at (0,0,0) of the coordinate system. A background image would make it look like EDSM's galactic map; without one you'd get a gradient ellipse that looks like clip art. EDASTRO probably has a CC-licensed image worth investigating.
+
+The DSSA tab would benefit as much as the POI tab. Five carriers at 2,000 ly might be a convenient cluster or a 10,000 ly detour through the wrong arm. The distance column can't tell you. The map would.
+
+It's not a core feature. But it's the kind of thing that crosses from flavour into genuinely useful the moment you're planning a route and realise you've been thinking about a one-dimensional problem that's actually three-dimensional. The idea emerged not from a design session or a backlog grooming — it came from sitting with the tool, using it, and noticing what it couldn't tell you.
+
+It went into the memory system for next time.
+
+---

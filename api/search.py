@@ -138,10 +138,10 @@ def _find_nearby_named(
             for name, dist_sq in fallback_rows
             if math.sqrt(dist_sq) <= radius
         ]
-        if results:
+        if len(results) >= num_results:
             return results
 
-    return []
+    return results
 
 
 def find_nearby(

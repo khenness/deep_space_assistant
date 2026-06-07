@@ -31,10 +31,26 @@ def db():
         ("Zunou AA-A d1",    100.0, 200.0, 300.0, "Zunou", "AA-A", "d"),
         # Different sector entirely — should never appear in results
         ("Colonia AA-A d1",  999.0, 999.0, 999.0, "Colonia", "AA-A", "d"),
-        # Named systems (sector IS NULL) — used for coordinate-radius search
+        # Named systems (sector IS NULL)
         ("Sol",              0.0,  0.0,  0.0,  None, None, None),
         ("Alpha Centauri",   3.0,  0.0,  3.0,  None, None, None),
         ("Barnard's Star",   5.0,  0.0,  0.0,  None, None, None),
+    ])
+    conn.execute("""
+        CREATE TABLE named_neighbours (
+            system_name  TEXT NOT NULL,
+            neighbour    TEXT NOT NULL,
+            distance_ly  REAL NOT NULL
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX idx_named_neighbours_system ON named_neighbours (system_name COLLATE NOCASE)"
+    )
+    conn.executemany("INSERT INTO named_neighbours VALUES (?, ?, ?)", [
+        ("Sol",           "Alpha Centauri", 4.24),
+        ("Sol",           "Barnard's Star", 5.0),
+        ("Alpha Centauri","Sol",            4.24),
+        ("Barnard's Star","Sol",            5.0),
     ])
     conn.commit()
     yield conn

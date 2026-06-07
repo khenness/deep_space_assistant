@@ -80,19 +80,36 @@ def _find_nearby_named(
     db: sqlite3.Connection,
     num_results: int,
 ) -> list[dict]:
-    """Coordinate-based radius search for hand-named systems (Sol, Colonia, etc.)."""
+    """Named system neighbour lookup via precomputed named_neighbours table."""
+    rows = db.execute(
+        "SELECT neighbour, distance_ly FROM named_neighbours "
+        "WHERE system_name = ? COLLATE NOCASE "
+        "ORDER BY distance_ly LIMIT ?",
+        (system_name, num_results),
+    ).fetchall()
+
+    if rows:
+        return [
+            {
+                "name": neighbour,
+                "match_level": "coordinate-radius",
+                "search_prefix": f"{system_name} ±50ly",
+                "confidence": "exact",
+                "typical_range_ly": f"< {dist:.1f} ly",
+                "sector_density": None,
+            }
+            for neighbour, dist in rows
+        ]
+
+    # Fallback: named_neighbours not yet built, use live bounding box query
     coords = _get_system_coords(system_name, db)
     if not coords:
         return []
 
     sx, sy, sz = coords
     radius = 50.0
-
-    # Bounding box via idx_xyz, distance computed and sorted in SQLite so we
-    # only transfer num_results rows to Python. Avoids fetching the entire box
-    # (potentially hundreds of thousands of rows near Sol) into memory.
     _BLOCKLIST = ("AssetViewerSystem",)
-    rows = db.execute(
+    fallback_rows = db.execute(
         "SELECT name, x, y, z, "
         "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
         "FROM systems "
@@ -100,27 +117,24 @@ def _find_nearby_named(
         "AND x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
         "AND name != ? COLLATE NOCASE "
         "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +
-        "ORDER BY dist_sq "
-        "LIMIT ?",
+        "ORDER BY dist_sq LIMIT ?",
         (sx, sx, sy, sy, sz, sz,
          sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
          system_name, *_BLOCKLIST, num_results),
     ).fetchall()
 
-    results = []
-    for name, cx, cy, cz, dist_sq in rows:
-        dist = math.sqrt(dist_sq)
-        if dist <= radius:
-            results.append({
-                "name": name,
-                "match_level": "coordinate-radius",
-                "search_prefix": f"{system_name} ±{radius:.0f}ly",
-                "confidence": "exact",
-                "typical_range_ly": f"< {dist:.1f} ly",
-                "sector_density": None,
-            })
-
-    return results
+    return [
+        {
+            "name": name,
+            "match_level": "coordinate-radius",
+            "search_prefix": f"{system_name} ±{radius:.0f}ly",
+            "confidence": "exact",
+            "typical_range_ly": f"< {math.sqrt(dist_sq):.1f} ly",
+            "sector_density": None,
+        }
+        for name, cx, cy, cz, dist_sq in fallback_rows
+        if math.sqrt(dist_sq) <= radius
+    ]
 
 
 def find_nearby(

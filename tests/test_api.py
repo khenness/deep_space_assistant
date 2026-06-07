@@ -27,7 +27,18 @@ def make_test_db():
         ("Zunou GS-B d7600", 4.0, 5.0, 6.0, "Zunou", "GS-B", "d"),
         ("Zunou GS-B c100",  10.0, 20.0, 30.0, "Zunou", "GS-B", "c"),
         ("Zunou AA-A d1",    100.0, 200.0, 300.0, "Zunou", "AA-A", "d"),
+        ("Sol",              0.0,  0.0,  0.0,  None, None, None),
     ])
+    conn.execute("""
+        CREATE TABLE named_neighbours (
+            system_name  TEXT NOT NULL,
+            neighbour    TEXT NOT NULL,
+            distance_ly  REAL NOT NULL
+        )
+    """)
+    conn.execute(
+        "CREATE INDEX idx_named_neighbours_system ON named_neighbours (system_name COLLATE NOCASE)"
+    )
     conn.commit()
     return conn
 

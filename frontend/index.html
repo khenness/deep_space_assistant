@@ -26,12 +26,12 @@
   <p><em>A lightning fast tool for explorers that works with undiscovered systems!</em></p>
 
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('nearby')">Find Nearby Discovered Systems</button>
-    <button class="tab" onclick="switchTab('dssa')">Find DSSA Carrier</button>
+    <button class="tab active" onclick="switchTab('dssa')">Find DSSA Carrier</button>
+    <button class="tab" onclick="switchTab('nearby')">Find Nearby Discovered Systems</button>
   </div>
 
   <!-- Nearby Systems Panel -->
-  <div id="panel-nearby" class="panel active">
+  <div id="panel-nearby" class="panel">
     <p>Find known discovered systems near an undiscovered system.</p>
     <input id="nearby-system" type="text" placeholder="e.g. Eol Prou KR-W d100" value="Sagittarius A*" />
     <br>
@@ -40,6 +40,7 @@
     <div id="nearby-status"></div>
     <div id="nearby-error"></div>
     <div id="nearby-results-for" style="margin-top:16px; margin-bottom:4px; display:flex; gap:24px;"><span id="nearby-results-for-text"></span><span id="nearby-timing" style="color:#999;"></span></div>
+    <div id="nearby-named-note" style="display:none; color:#666; font-style:italic; font-size:0.9em; margin-bottom:4px;"></div>
     <table id="nearby-table" style="display:none">
       <thead>
         <tr><th>#</th><th>System</th><th>Match level</th><th>Confidence</th><th>Typical range</th></tr>
@@ -49,9 +50,9 @@
   </div>
 
   <!-- DSSA Carrier Panel -->
-  <div id="panel-dssa" class="panel">
+  <div id="panel-dssa" class="panel active">
     <p>Find the nearest DSSA fleet carriers. Works with undiscovered systems.</p>
-    <input id="dssa-system" type="text" placeholder="e.g. Eol Prou KR-W d100" />
+    <input id="dssa-system" type="text" placeholder="e.g. Eol Prou KR-W d100" value="Sagittarius A*" />
     <br>
     Results: <input id="dssa-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
     <button onclick="searchDSSA()">Search</button>
@@ -85,11 +86,14 @@
 
     function switchTab(name) {
       document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['nearby','dssa'][i] === name);
+        t.classList.toggle('active', ['dssa','nearby'][i] === name);
       });
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
     }
+
+    // Auto-search on page load
+    window.addEventListener('DOMContentLoaded', () => searchDSSA());
 
     async function searchNearby() {
       const system = nearbyInput.value.trim();
@@ -101,6 +105,7 @@
       error.textContent = ""; body.innerHTML = ""; table.style.display = "none";
       document.getElementById("nearby-results-for-text").textContent = "";
       document.getElementById("nearby-timing").textContent = "";
+      document.getElementById("nearby-named-note").style.display = "none";
       if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
 
@@ -116,6 +121,16 @@
 
         document.getElementById("nearby-results-for-text").textContent = `Showing results for: ${data.input_system}`;
         document.getElementById("nearby-timing").textContent = `Search took ${elapsed}s`;
+
+        const namedNote = document.getElementById("nearby-named-note");
+        const isCoordSearch = data.results.length > 0 && data.results[0].match_level === "coordinate-radius";
+        if (isCoordSearch) {
+          namedNote.textContent = `Named system search — showing the ${data.results.length} nearest known systems by coordinate distance.`;
+          namedNote.style.display = "block";
+        } else {
+          namedNote.style.display = "none";
+        }
+
         data.results.forEach((r, i) => {
           const row = body.insertRow();
           row.insertCell().textContent = i + 1;

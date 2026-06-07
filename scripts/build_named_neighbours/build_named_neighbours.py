@@ -26,10 +26,16 @@ BATCH_SIZE = 1000
 def build(db_path: Path) -> None:
     conn = sqlite3.connect(db_path)
 
+    _BLOCKLIST = {"AssetViewerSystem"}
+
     print("Loading named systems...")
-    rows = conn.execute(
-        "SELECT name, x, y, z FROM systems WHERE sector IS NULL AND x IS NOT NULL"
-    ).fetchall()
+    rows = [
+        (name, x, y, z)
+        for name, x, y, z in conn.execute(
+            "SELECT name, x, y, z FROM systems WHERE sector IS NULL AND x IS NOT NULL"
+        ).fetchall()
+        if name not in _BLOCKLIST
+    ]
     print(f"  {len(rows):,} named systems loaded")
 
     print("Dropping and recreating named_neighbours table...")

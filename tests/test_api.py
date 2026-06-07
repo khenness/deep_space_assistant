@@ -91,7 +91,6 @@ class TestNearbyEndpoint:
         resp = client.get("/nearby")
         assert resp.status_code == 422
 
-    def test_non_procedural_returns_empty_results(self, client):
+    def test_non_procedural_returns_200(self, client):
         resp = client.get("/nearby", params={"system": "Sol"})
         assert resp.status_code == 200
-        assert resp.json()["results"] == []

@@ -101,40 +101,47 @@ def _find_nearby_named(
             for neighbour, dist in rows
         ]
 
-    # Fallback: named_neighbours not yet built, use live bounding box query
+    # Fallback: named_neighbours not yet built, or Sgr A*-style case where named
+    # system has no named neighbours (dense procedural region). Search all systems.
     coords = _get_system_coords(system_name, db)
     if not coords:
         return []
 
     sx, sy, sz = coords
-    radius = 50.0
     _BLOCKLIST = ("AssetViewerSystem",)
-    fallback_rows = db.execute(
-        "SELECT name, x, y, z, "
-        "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
-        "FROM systems "
-        "WHERE sector IS NULL "
-        "AND x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
-        "AND name != ? COLLATE NOCASE "
-        "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +
-        "ORDER BY dist_sq LIMIT ?",
-        (sx, sx, sy, sy, sz, sz,
-         sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
-         system_name, *_BLOCKLIST, num_results),
-    ).fetchall()
 
-    return [
-        {
-            "name": name,
-            "match_level": "coordinate-radius",
-            "search_prefix": f"{system_name} ±{radius:.0f}ly",
-            "confidence": "exact",
-            "typical_range_ly": f"< {math.sqrt(dist_sq):.1f} ly",
-            "sector_density": None,
-        }
-        for name, cx, cy, cz, dist_sq in fallback_rows
-        if math.sqrt(dist_sq) <= radius
-    ]
+    # Try named systems first within 50ly; if none found, widen to all systems at 200ly.
+    for radius, extra_filter in [(50.0, "AND sector IS NULL"), (200.0, "AND 1=1")]:
+        fallback_rows = db.execute(
+            "SELECT name, x, y, z, "
+            "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
+            "FROM systems "
+            "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
+            f"{extra_filter} "
+            "AND name != ? COLLATE NOCASE "
+            "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +
+            "ORDER BY dist_sq LIMIT ?",
+            (sx, sx, sy, sy, sz, sz,
+             sx - radius, sx + radius, sy - radius, sy + radius, sz - radius, sz + radius,
+             system_name, *_BLOCKLIST, num_results),
+        ).fetchall()
+
+        results = [
+            {
+                "name": name,
+                "match_level": "coordinate-radius",
+                "search_prefix": f"{system_name} ±{radius:.0f}ly",
+                "confidence": "exact",
+                "typical_range_ly": f"< {math.sqrt(dist_sq):.1f} ly",
+                "sector_density": None,
+            }
+            for name, cx, cy, cz, dist_sq in fallback_rows
+            if math.sqrt(dist_sq) <= radius
+        ]
+        if results:
+            return results
+
+    return []
 
 
 def find_nearby(

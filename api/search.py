@@ -88,7 +88,7 @@ def _find_nearby_named(
         (system_name, num_results),
     ).fetchall()
 
-    if rows:
+    if len(rows) >= num_results:
         return [
             {
                 "name": neighbour,

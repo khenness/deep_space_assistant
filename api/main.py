@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import get_db
-from .models import DSSACarrier, DSSAResponse, NearbyResponse, NearbySystem
-from .search import find_nearby, find_nearest_dssa
+from .models import DSSACarrier, DSSAResponse, NearbyResponse, NearbySystem, POI, POIResponse
+from .search import find_nearby, find_nearest_dssa, find_nearby_poi
 
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
 
@@ -63,6 +63,26 @@ def get_nearest_dssa(
         reference_error_ly=data["reference_error_ly"],
         reference_density=data["reference_density"],
         results=[DSSACarrier(**r) for r in data["results"]],
+    )
+
+
+@app.get("/poi/nearby", response_model=POIResponse)
+def get_nearby_poi(
+    system: str,
+    results: int = 10,
+    category: str | None = None,
+    db: sqlite3.Connection = Depends(get_db),
+) -> POIResponse:
+    if not system.strip():
+        raise HTTPException(status_code=422, detail="system name cannot be empty")
+
+    data = find_nearby_poi(system, db, num_results=results, category=category)
+    return POIResponse(
+        input_system=system,
+        reference_system=data["reference_system"],
+        reference_confidence=data["reference_confidence"],
+        reference_error_ly=data["reference_error_ly"],
+        results=[POI(**r) for r in data["results"]],
     )
 
 

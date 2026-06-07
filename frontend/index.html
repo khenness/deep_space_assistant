@@ -28,6 +28,7 @@
   <div class="tabs">
     <button class="tab active" onclick="switchTab('dssa')">Find DSSA Carrier</button>
     <button class="tab" onclick="switchTab('nearby')">Find Nearby Discovered Systems</button>
+    <button class="tab" onclick="switchTab('poi')">Nearby Points of Interest</button>
   </div>
 
   <!-- Nearby Systems Panel -->
@@ -46,6 +47,44 @@
         <tr><th>#</th><th>System</th><th>Match level</th><th>Confidence</th><th>Typical range</th></tr>
       </thead>
       <tbody id="nearby-body"></tbody>
+    </table>
+  </div>
+
+  <!-- Points of Interest Panel -->
+  <div id="panel-poi" class="panel">
+    <p>Find notable points of interest near any system. Data from the <a href="https://edastro.com/gec" target="_blank">EDASTRO Galactic Exploration Catalog</a>.</p>
+    <input id="poi-system" type="text" placeholder="e.g. Eol Prou KR-W d100" value="Sagittarius A*" />
+    <br>
+    Results: <input id="poi-limit" type="number" value="10" min="1" max="50" style="width:60px; padding:4px; font-family:monospace;" />
+    Category: <select id="poi-category" style="font-family:monospace; padding:4px;">
+      <option value="">All</option>
+      <option>Community</option>
+      <option>Deep Space Outpost</option>
+      <option>Green Gas Giants</option>
+      <option>Historical</option>
+      <option>Inhabited System</option>
+      <option>Legacy</option>
+      <option>Memorials</option>
+      <option>Mystery and Xenology</option>
+      <option>Nebulae</option>
+      <option>Notable Stellar Phenomena</option>
+      <option>Organic</option>
+      <option>Planetary Circumnavigation</option>
+      <option>Planetary Features</option>
+      <option>Sights and Scenery</option>
+      <option>Stellar Features</option>
+      <option>Tourist Beacons</option>
+    </select>
+    <button onclick="searchPOI()">Search</button>
+    <div id="poi-status"></div>
+    <div id="poi-error"></div>
+    <div id="poi-reference" class="reference-note"></div>
+    <div id="poi-results-for" style="margin-top:16px; margin-bottom:4px; display:flex; gap:24px;"><span id="poi-results-for-text"></span><span id="poi-timing" style="color:#999;"></span></div>
+    <table id="poi-table" style="display:none">
+      <thead>
+        <tr><th>#</th><th>Name</th><th>System</th><th>Category</th><th>Distance</th><th>Rating</th><th>Summary</th><th>Link</th></tr>
+      </thead>
+      <tbody id="poi-body"></tbody>
     </table>
   </div>
 
@@ -69,27 +108,94 @@
   </div>
 
   <script>
-    // Keep both inputs in sync so text persists across tab switches
+    // Keep all system inputs in sync so text persists across tab switches
     const nearbyInput = document.getElementById("nearby-system");
     const dssaInput = document.getElementById("dssa-system");
+    const poiInput = document.getElementById("poi-system");
     const nearbyLimit = document.getElementById("nearby-limit");
     const dssaLimit = document.getElementById("dssa-limit");
+    const poiLimit = document.getElementById("poi-limit");
 
-    nearbyInput.addEventListener("input", () => dssaInput.value = nearbyInput.value);
-    dssaInput.addEventListener("input", () => nearbyInput.value = dssaInput.value);
+    const syncSystem = (val) => { nearbyInput.value = dssaInput.value = poiInput.value = val; };
+    nearbyInput.addEventListener("input", () => syncSystem(nearbyInput.value));
+    dssaInput.addEventListener("input", () => syncSystem(dssaInput.value));
+    poiInput.addEventListener("input", () => syncSystem(poiInput.value));
 
-    nearbyLimit.addEventListener("input", () => dssaLimit.value = nearbyLimit.value);
-    dssaLimit.addEventListener("input", () => nearbyLimit.value = dssaLimit.value);
+    nearbyLimit.addEventListener("input", () => dssaLimit.value = poiLimit.value = nearbyLimit.value);
+    dssaLimit.addEventListener("input", () => nearbyLimit.value = poiLimit.value = dssaLimit.value);
+    poiLimit.addEventListener("input", () => nearbyLimit.value = dssaLimit.value = poiLimit.value);
 
     nearbyInput.addEventListener("keydown", e => { if (e.key === "Enter") searchNearby(); });
     dssaInput.addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
+    poiInput.addEventListener("keydown", e => { if (e.key === "Enter") searchPOI(); });
 
     function switchTab(name) {
       document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['dssa','nearby'][i] === name);
+        t.classList.toggle('active', ['dssa','nearby','poi'][i] === name);
       });
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
+    }
+
+    async function searchPOI() {
+      const system = poiInput.value.trim();
+      const status = document.getElementById("poi-status");
+      const error = document.getElementById("poi-error");
+      const reference = document.getElementById("poi-reference");
+      const table = document.getElementById("poi-table");
+      const body = document.getElementById("poi-body");
+
+      error.textContent = ""; body.innerHTML = ""; table.style.display = "none"; reference.textContent = "";
+      document.getElementById("poi-results-for-text").textContent = "";
+      document.getElementById("poi-timing").textContent = "";
+      if (!system) { error.textContent = "Please enter a system name."; return; }
+      status.textContent = "Searching...";
+
+      try {
+        const limit = parseInt(poiLimit.value) || 10;
+        const category = document.getElementById("poi-category").value;
+        const params = new URLSearchParams({ system, results: limit });
+        if (category) params.set("category", category);
+        const t0 = performance.now();
+        const resp = await fetch(`/poi/nearby?${params}`);
+        const data = await resp.json();
+        const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+        status.textContent = "";
+        if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
+        if (data.results.length === 0) { status.textContent = "No points of interest found near " + system + "."; return; }
+
+        if (data.reference_system) {
+          reference.textContent = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
+        }
+
+        document.getElementById("poi-results-for-text").textContent = `Showing results for: ${system}`;
+        document.getElementById("poi-timing").textContent = `Search took ${elapsed}s`;
+
+        data.results.forEach((r, i) => {
+          const row = body.insertRow();
+          row.insertCell().textContent = i + 1;
+          row.insertCell().textContent = r.name;
+          row.insertCell().textContent = r.system_name;
+          const catCell = row.insertCell();
+          catCell.textContent = r.category2 ? `${r.category} / ${r.category2}` : (r.category || "");
+          row.insertCell().textContent = r.distance_ly !== null ? r.distance_ly.toLocaleString() + " ly" : "unknown";
+          const starsCell = row.insertCell();
+          starsCell.textContent = r.avg_stars ? r.avg_stars.toFixed(1) + " ★" : "—";
+          row.insertCell().textContent = r.summary || "—";
+          const linkCell = row.insertCell();
+          if (r.poi_url) {
+            const a = document.createElement("a");
+            a.href = r.poi_url; a.target = "_blank"; a.textContent = "GEC";
+            linkCell.appendChild(a);
+          } else {
+            linkCell.textContent = "—";
+          }
+        });
+        table.style.display = "table";
+      } catch (e) {
+        status.textContent = "";
+        error.textContent = "Could not reach the API. Is the server running?";
+      }
     }
 
     // Auto-search on page load

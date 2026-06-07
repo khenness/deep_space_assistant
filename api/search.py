@@ -186,6 +186,74 @@ def find_nearby(
     return list(seen.values())[:num_results]
 
 
+def find_nearby_poi(
+    system_name: str,
+    db: sqlite3.Connection,
+    num_results: int = 10,
+    category: str | None = None,
+) -> dict:
+    """Find POIs near a system using bounding box search on the poi table."""
+    coords = _get_system_coords(system_name, db)
+    reference_system = system_name
+    reference_confidence = "exact"
+    reference_error_ly = None
+
+    if not coords:
+        nearby = find_nearby(system_name, db, num_results=1)
+        if not nearby:
+            return {"reference_system": None, "reference_confidence": None,
+                    "reference_error_ly": None, "results": []}
+        best = nearby[0]
+        reference_system = best["name"]
+        reference_confidence = best["confidence"]
+        reference_error_ly = "± " + best["typical_range_ly"]
+        coords = _get_system_coords(reference_system, db)
+
+    if not coords:
+        return {"reference_system": None, "reference_confidence": None,
+                "reference_error_ly": None, "results": []}
+
+    rx, ry, rz = coords
+    radius = 500.0
+
+    category_filter = "AND category = ?" if category else ""
+    params = [rx, rx, ry, ry, rz, rz, rx - radius, rx + radius,
+              ry - radius, ry + radius, rz - radius, rz + radius]
+    if category:
+        params.append(category)
+    params.append(num_results)
+
+    rows = db.execute(
+        "SELECT id, source, name, system_name, category, category2, region, "
+        "sol_distance, summary, avg_stars, votes, rare, poi_url, main_image, "
+        "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
+        "FROM poi INDEXED BY idx_poi_xyz "
+        "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
+        f"{category_filter} "
+        "ORDER BY dist_sq LIMIT ?",
+        params,
+    ).fetchall()
+
+    results = [
+        {
+            "id": row[0], "source": row[1], "name": row[2], "system_name": row[3],
+            "category": row[4], "category2": row[5], "region": row[6],
+            "sol_distance": row[7], "summary": row[8], "avg_stars": row[9],
+            "votes": row[10], "rare": bool(row[11]), "poi_url": row[12],
+            "main_image": row[13], "distance_ly": round(math.sqrt(row[14]), 1),
+        }
+        for row in rows
+    ]
+
+    is_approximate = reference_system != system_name
+    return {
+        "reference_system": reference_system if is_approximate else None,
+        "reference_confidence": reference_confidence if is_approximate else None,
+        "reference_error_ly": reference_error_ly if is_approximate else None,
+        "results": results,
+    }
+
+
 def _get_system_coords(system_name: str, db: sqlite3.Connection) -> tuple[float, float, float] | None:
     row = db.execute(
         "SELECT x, y, z FROM systems WHERE name = ? COLLATE NOCASE",

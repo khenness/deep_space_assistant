@@ -19,6 +19,8 @@ import csv
 import io
 import sqlite3
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -90,6 +92,9 @@ def lookup_coordinates(system_name: str, conn: sqlite3.Connection) -> tuple[floa
 
 
 def run_import(db_path: Path) -> None:
+    start = time.monotonic()
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
     if not db_path.exists():
         print(f"Error: database not found: {db_path}")
         print("Run scripts/import_edsm_dump/import_edsm_dump.py first.")
@@ -140,7 +145,8 @@ def run_import(db_path: Path) -> None:
     conn.commit()
     conn.close()
 
-    print(f"\nDone.")
+    elapsed = time.monotonic() - start
+    print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (took {elapsed:.0f}s)")
     print(f"  Carriers imported : {inserted}")
     print(f"  With coordinates  : {inserted - len(no_coords)}")
     print(f"  Without coords    : {len(no_coords)} (system not in EDSM DB — distance calc unavailable)")

@@ -28,6 +28,8 @@ import json
 import re
 import sqlite3
 import sys
+import time
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -68,6 +70,8 @@ def create_schema(conn: sqlite3.Connection) -> None:
 
 
 def run_import(source: Path, db_path: Path, limit: int | None) -> None:
+    start = time.monotonic()
+    print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Source : {source}")
     print(f"Output : {db_path}")
     if limit:
@@ -124,8 +128,9 @@ def run_import(source: Path, db_path: Path, limit: int | None) -> None:
 
     conn.close()
 
+    elapsed = time.monotonic() - start
     parse_rate = 100 * parse_failures / total if total else 0
-    print(f"\nDone.")
+    print(f"\nFinished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} (took {elapsed:.0f}s)")
     print(f"  Records imported : {total:,}")
     print(f"  Parse failures   : {parse_failures:,} ({parse_rate:.2f}%) — stored with NULL sector/boxel/mass_code")
     print(f"  Database         : {db_path}")

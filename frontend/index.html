@@ -129,12 +129,20 @@
     dssaInput.addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
     poiInput.addEventListener("keydown", e => { if (e.key === "Enter") searchPOI(); });
 
+    const tabSearched = { dssa: false, nearby: false, poi: false };
+
     function switchTab(name) {
       document.querySelectorAll('.tab').forEach((t, i) => {
         t.classList.toggle('active', ['dssa','nearby','poi'][i] === name);
       });
       document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       document.getElementById('panel-' + name).classList.add('active');
+      if (!tabSearched[name]) {
+        tabSearched[name] = true;
+        if (name === 'dssa') searchDSSA();
+        else if (name === 'nearby') searchNearby();
+        else if (name === 'poi') searchPOI();
+      }
     }
 
     async function searchPOI() {
@@ -199,7 +207,10 @@
     }
 
     // Auto-search on page load
-    window.addEventListener('DOMContentLoaded', () => searchDSSA());
+    window.addEventListener('DOMContentLoaded', () => {
+      tabSearched['dssa'] = true;
+      searchDSSA();
+    });
 
     async function searchNearby() {
       const system = nearbyInput.value.trim();

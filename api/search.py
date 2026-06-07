@@ -214,7 +214,7 @@ def find_nearby_poi(
                 "reference_error_ly": None, "results": []}
 
     rx, ry, rz = coords
-    radius = 500.0
+    radius = 10000.0
 
     category_filter = "AND category = ?" if category else ""
     params = [rx, rx, ry, ry, rz, rz, rx - radius, rx + radius,

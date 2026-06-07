@@ -116,7 +116,7 @@ def _find_nearby_named(
         fallback_rows = db.execute(
             "SELECT name, "
             "((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
-            "FROM systems "
+            "FROM systems INDEXED BY idx_xyz "
             "WHERE x BETWEEN ? AND ? AND y BETWEEN ? AND ? AND z BETWEEN ? AND ? "
             "AND name != ? COLLATE NOCASE "
             "AND name NOT IN ({}) ".format(",".join("?" * len(_BLOCKLIST))) +

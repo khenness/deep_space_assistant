@@ -39,6 +39,7 @@ def make_test_db():
     conn.execute(
         "CREATE INDEX idx_named_neighbours_system ON named_neighbours (system_name COLLATE NOCASE)"
     )
+    conn.execute("CREATE INDEX idx_xyz ON systems (x, y, z)")
     conn.commit()
     return conn
 

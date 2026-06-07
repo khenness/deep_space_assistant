@@ -46,6 +46,7 @@ def db():
     conn.execute(
         "CREATE INDEX idx_named_neighbours_system ON named_neighbours (system_name COLLATE NOCASE)"
     )
+    conn.execute("CREATE INDEX idx_xyz ON systems (x, y, z)")
     conn.executemany("INSERT INTO named_neighbours VALUES (?, ?, ?)", [
         ("Sol",           "Alpha Centauri", 4.24),
         ("Sol",           "Barnard's Star", 5.0),

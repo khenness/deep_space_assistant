@@ -451,3 +451,55 @@ For a tool that's working from an approximate reference point in an uncharted re
 The distance error column remains in the DSSA table for now — Kevin noted it's probably more confusing to users than helpful, but it's useful during development to see the raw numbers. Will be revisited.
 
 ---
+
+## Sunday 7th June 2026 — Named Systems, Precomputed Tables, and the Sagittarius A* Edge Case
+
+*This is a summary of today's session authored by Claude and approved by Kevin.*
+
+### The Problem That Wouldn't Die
+
+Despite the previous session fixing named system performance — adding `idx_named_xyz`, moving sort and limit into SQL — Sol was still taking 5–12 seconds. A procedural system like `JUENAE SL-K D9-3226` would return 1,000 results in under a second. Sol, three light years from Earth, the most famous system in the game, took longer than a neutron star jump.
+
+The diagnosis was straightforward in retrospect. The `idx_named_xyz` partial index narrows the spatial query for named systems, but the 50 ly sphere around Sol contains a lot of named systems. The database was doing the right thing — it was just doing a lot of it. The fundamental issue was that we were re-running a bounding box search every single time someone searched for Sol, even though the answer never changes.
+
+### The Fix: Precompute at Import Time
+
+The solution was to move the work to a place where it only needs to happen once. A new script — `scripts/build_named_neighbours/build_named_neighbours.py` — loads all ~154,000 named systems into memory, computes each system's nearest named neighbours within 50 ly (bounding box fast-reject, then Euclidean), and writes them into a `named_neighbours` table. The script runs once after the EDSM import and whenever the systems table is refreshed. The query at search time becomes a single indexed lookup by system name — O(1).
+
+The table stores the top 50 neighbours per system with precomputed distances. For Sol, that lookup is now sub-millisecond.
+
+The live fallback path — the bounding box query — is still there. If the `named_neighbours` table has no rows for a system (e.g. the table hasn't been built yet, or was just dropped), the code falls through to the live query automatically. The build script is an offline optimisation, not a hard dependency.
+
+### AssetViewerSystem Returns
+
+Once testing began against the live database, AssetViewerSystem reappeared. Frontier's internal development artifact, sitting at coordinates (0, 2, 0) — two light years from Sol — had been precomputed into the `named_neighbours` table because the build script hadn't filtered it out. The blocklist that excluded it from live bounding box queries existed only in the fallback path. The fix was to add the filter at the start of the build script, before any neighbour computation happens, so it can't end up in the table at all.
+
+### The Sagittarius A* Problem
+
+This is where the architecture hit a genuine edge case it hadn't considered.
+
+Sagittarius A* — the supermassive black hole at the galactic centre — is a named system. It has exact coordinates in EDSM. But it's surrounded not by other named systems, but by tens of thousands of procedural systems. The 50 ly sphere around it contains nothing with `sector IS NULL`. So the `named_neighbours` table has no rows for it. The fallback fires. And the fallback was written as `WHERE sector IS NULL` — find named systems in the box — which also finds nothing.
+
+The result: Sagittarius A* returned zero results, stuck in a spinner.
+
+The wrong fix would have been to extend the `named_neighbours` radius to, say, 500 ly and hope to capture procedural systems. The right fix was to acknowledge that this is a two-phase problem: look for named neighbours first (good for Sol, Alpha Centauri, most of the bubble), and if none are found, widen to all systems — named and procedural — at 200 ly. This covers the Sgr A* case without changing the behaviour for systems that already work correctly.
+
+One small SQL mistake during the fix: when the extra filter clause was empty (for the all-systems pass), the generated SQL became `FROM systems  AND x BETWEEN...` — missing a `WHERE`. Fixed by ensuring every branch has a proper `WHERE` clause.
+
+### Tests
+
+One existing test — `test_non_procedural_returns_empty_results` — asserted that Sol should return an empty result list. This was written when named system support was first added, at a time when we expected non-procedural inputs to yield nothing. The semantics have since changed — named systems now actively search for neighbours. The test was renamed and updated to assert a 200 response without making claims about the result list, which is the correct invariant for the HTTP layer.
+
+33 tests, all passing.
+
+### What's Next
+
+The import is still running in a separate window. Once it finishes, the build script needs to run:
+
+```bash
+.venv/bin/python scripts/build_named_neighbours/build_named_neighbours.py
+```
+
+After that, restart the server and Sol should be sub-100ms. Sagittarius A* will return nearby procedural systems from the fallback. AssetViewerSystem will not appear anywhere. The named system path will be in the state it should have been in from the start.
+
+---

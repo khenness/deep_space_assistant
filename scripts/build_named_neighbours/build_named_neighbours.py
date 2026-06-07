@@ -105,9 +105,14 @@ def build(db_path: Path, second_pass_only: bool = False) -> None:
     print(f"  {len(isolated):,} isolated named systems found")
 
     if isolated:
-        print(f"  Computing all-systems neighbours for isolated systems (radius={RADIUS}ly)...")
+        total = len(isolated)
+        print(f"  Computing all-systems neighbours for {total:,} isolated systems (radius={RADIUS}ly)...")
         batch = []
-        for name, sx, sy, sz in isolated:
+        pass_rows = 0
+        pass_start = time.monotonic()
+
+        for i, (name, sx, sy, sz) in enumerate(isolated):
+            query_start = time.monotonic()
             db_rows = conn.execute(
                 "SELECT name, ((x-?)*(x-?) + (y-?)*(y-?) + (z-?)*(z-?)) AS dist_sq "
                 "FROM systems "
@@ -119,15 +124,39 @@ def build(db_path: Path, second_pass_only: bool = False) -> None:
                  sx - RADIUS, sx + RADIUS, sy - RADIUS, sy + RADIUS, sz - RADIUS, sz + RADIUS,
                  name, MAX_NEIGHBOURS),
             ).fetchall()
+            query_ms = (time.monotonic() - query_start) * 1000
+
+            found = 0
             for neighbour, dist_sq in db_rows:
                 dist = math.sqrt(dist_sq)
                 if dist <= RADIUS:
                     batch.append((name, neighbour, round(dist, 4)))
+                    found += 1
 
-        conn.executemany("INSERT INTO named_neighbours VALUES (?, ?, ?)", batch)
-        total_rows += len(batch)
+            if i % 100 == 0 or query_ms > 2000:
+                elapsed_so_far = time.monotonic() - pass_start
+                rate = (i + 1) / elapsed_so_far if elapsed_so_far > 0 else 0
+                eta = (total - i - 1) / rate if rate > 0 else 0
+                print(
+                    f"  [{i+1:,}/{total:,}] {name!r:40s} "
+                    f"{found} neighbours  {query_ms:.0f}ms  "
+                    f"ETA {eta/60:.1f}min",
+                    flush=True,
+                )
+
+            if len(batch) >= BATCH_SIZE:
+                conn.executemany("INSERT INTO named_neighbours VALUES (?, ?, ?)", batch)
+                pass_rows += len(batch)
+                total_rows += len(batch)
+                batch = []
+
+        if batch:
+            conn.executemany("INSERT INTO named_neighbours VALUES (?, ?, ?)", batch)
+            pass_rows += len(batch)
+            total_rows += len(batch)
+
         conn.commit()
-        print(f"  {len(batch):,} rows added for isolated systems")
+        print(f"  {pass_rows:,} rows added for isolated systems")
 
     conn.close()
     elapsed = time.monotonic() - start

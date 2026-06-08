@@ -41,7 +41,6 @@
     <div id="nearby-status"></div>
     <div id="nearby-error"></div>
     <div id="nearby-results-for" style="margin-top:16px; margin-bottom:4px; display:flex; gap:24px;"><span id="nearby-results-for-text"></span><span id="nearby-timing" style="color:#999;"></span></div>
-    <div id="nearby-named-note" style="display:none; color:#666; font-style:italic; font-size:0.9em; margin-bottom:4px;"></div>
     <div style="display:flex; gap:16px; margin:12px 0;">
       <div style="flex:1; text-align:center;">
         <div style="font-size:0.85em; color:#666; margin-bottom:4px;">Local View</div>
@@ -52,6 +51,7 @@
         <img src="/images/placeholder_galaxy.png" alt="Galaxy view" style="width:100%; display:block;" />
       </div>
     </div>
+    <div id="nearby-confidence" style="display:none; margin-bottom:8px;"></div>
     <table id="nearby-table" style="display:none">
       <thead>
         <tr><th>#</th><th>System</th><th>Match level</th><th>Confidence</th><th>Typical range</th></tr>
@@ -88,7 +88,6 @@
     <button onclick="searchPOI()">Search</button>
     <div id="poi-status"></div>
     <div id="poi-error"></div>
-    <div id="poi-reference" class="reference-note"></div>
     <div id="poi-results-for" style="margin-top:16px; margin-bottom:4px; display:flex; gap:24px;"><span id="poi-results-for-text"></span><span id="poi-timing" style="color:#999;"></span></div>
     <div style="display:flex; gap:16px; margin:12px 0;">
       <div style="flex:1; text-align:center;">
@@ -100,6 +99,7 @@
         <img src="/images/placeholder_galaxy.png" alt="Galaxy view" style="width:100%; display:block;" />
       </div>
     </div>
+    <div id="poi-confidence" style="display:none; margin-bottom:8px;"></div>
     <table id="poi-table" style="display:none">
       <thead>
         <tr><th>#</th><th>Name</th><th>System</th><th>Category</th><th>Distance</th><th>Rating</th><th>Summary</th><th>Link</th></tr>
@@ -117,7 +117,6 @@
     <button onclick="searchDSSA()">Search</button>
     <div id="dssa-status"></div>
     <div id="dssa-error"></div>
-    <div id="dssa-reference" class="reference-note"></div>
     <div id="dssa-results-for" style="margin-top:16px; margin-bottom:4px; display:flex; gap:24px;"><span id="dssa-results-for-text"></span><span id="dssa-timing" style="color:#999;"></span></div>
     <div style="display:flex; gap:16px; margin:12px 0;">
       <div style="flex:1; text-align:center;">
@@ -129,6 +128,7 @@
         <img src="/images/placeholder_galaxy.png" alt="Galaxy view" style="width:100%; display:block;" />
       </div>
     </div>
+    <div id="dssa-confidence" style="display:none; margin-bottom:8px;"></div>
     <table id="dssa-table" style="display:none">
       <thead>
         <tr><th>#</th><th>Carrier</th><th>Callsign</th><th>System</th><th>Region</th><th>Distance</th><th>Services</th><th>Accuracy</th><th>Distance error</th></tr>
@@ -159,6 +159,24 @@
     dssaInput.addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
     poiInput.addEventListener("keydown", e => { if (e.key === "Enter") searchPOI(); });
 
+    const CONFIDENCE_STYLES = {
+      exact:  { bg: '#d4edda', border: '#28a745', text: '#155724' },
+      high:   { bg: '#d4edda', border: '#28a745', text: '#155724' },
+      medium: { bg: '#fff3cd', border: '#ffc107', text: '#856404' },
+      low:    { bg: '#f8d7da', border: '#dc3545', text: '#721c24' },
+    };
+
+    function renderConfidence(elId, confidence, summary, detail) {
+      const el = document.getElementById(elId);
+      if (!confidence) { el.style.display = 'none'; el.innerHTML = ''; return; }
+      const s = CONFIDENCE_STYLES[confidence.toLowerCase()] || CONFIDENCE_STYLES.low;
+      el.style.cssText = `display:block; text-align:center; margin:8px 0; padding:8px 16px;
+        background:${s.bg}; border:1px solid ${s.border}; color:${s.text};
+        font-family:monospace; border-radius:4px;`;
+      el.innerHTML = `<strong>Confidence: ${confidence.toUpperCase()}</strong> &mdash; ${summary}`
+        + (detail ? `<br><span style="font-size:0.9em;">${detail}</span>` : '');
+    }
+
     const tabSearched = { dssa: false, nearby: false, poi: false };
 
     function switchTab(name) {
@@ -179,13 +197,13 @@
       const system = poiInput.value.trim();
       const status = document.getElementById("poi-status");
       const error = document.getElementById("poi-error");
-      const reference = document.getElementById("poi-reference");
       const table = document.getElementById("poi-table");
       const body = document.getElementById("poi-body");
 
-      error.textContent = ""; body.innerHTML = ""; table.style.display = "none"; reference.textContent = "";
+      error.textContent = ""; body.innerHTML = ""; table.style.display = "none";
       document.getElementById("poi-results-for-text").textContent = "";
       document.getElementById("poi-timing").textContent = "";
+      renderConfidence("poi-confidence", null, null);
       if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
 
@@ -202,12 +220,12 @@
         if (!resp.ok) { error.textContent = data.detail || "Something went wrong."; return; }
         if (data.results.length === 0) { status.textContent = "No points of interest found near " + system + "."; return; }
 
-        if (data.reference_system) {
-          reference.textContent = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
-        }
-
         document.getElementById("poi-results-for-text").textContent = `Showing results for: ${system}`;
         document.getElementById("poi-timing").textContent = `Search took ${elapsed}s`;
+
+        const poiConf = data.reference_system ? data.reference_confidence : "exact";
+        const poiSummary = data.reference_system ? `distances from ${data.reference_system} (error ${data.reference_error_ly})` : "known system — exact coordinates";
+        renderConfidence("poi-confidence", poiConf, poiSummary, null);
 
         data.results.forEach((r, i) => {
           const row = body.insertRow();
@@ -253,6 +271,7 @@
       document.getElementById("nearby-results-for-text").textContent = "";
       document.getElementById("nearby-timing").textContent = "";
       document.getElementById("nearby-named-note").style.display = "none";
+      renderConfidence("nearby-confidence", null, null);
       if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
 
@@ -269,13 +288,14 @@
         document.getElementById("nearby-results-for-text").textContent = `Showing results for: ${data.input_system}`;
         document.getElementById("nearby-timing").textContent = `Search took ${elapsed}s`;
 
-        const namedNote = document.getElementById("nearby-named-note");
-        const isCoordSearch = data.results.length > 0 && data.results[0].match_level === "coordinate-radius";
-        if (isCoordSearch) {
-          namedNote.textContent = `Named system search — showing the ${data.results.length} nearest known systems by coordinate distance.`;
-          namedNote.style.display = "block";
+        if (data.results.length > 0) {
+          const first = data.results[0];
+          const isCoord = first.match_level === "coordinate-radius";
+          const summary = isCoord ? "known system — exact coordinates" : `prefix match (${first.match_level})`;
+          const detail = isCoord ? `Showing the ${data.results.length} nearest known systems by coordinate distance.` : null;
+          renderConfidence("nearby-confidence", first.confidence, summary, detail);
         } else {
-          namedNote.style.display = "none";
+          renderConfidence("nearby-confidence", null, null, null);
         }
 
         data.results.forEach((r, i) => {
@@ -306,13 +326,13 @@
       const system = dssaInput.value.trim();
       const status = document.getElementById("dssa-status");
       const error = document.getElementById("dssa-error");
-      const reference = document.getElementById("dssa-reference");
       const table = document.getElementById("dssa-table");
       const body = document.getElementById("dssa-body");
 
-      error.textContent = ""; body.innerHTML = ""; table.style.display = "none"; reference.textContent = "";
+      error.textContent = ""; body.innerHTML = ""; table.style.display = "none";
       document.getElementById("dssa-results-for-text").textContent = "";
       document.getElementById("dssa-timing").textContent = "";
+      renderConfidence("dssa-confidence", null, null);
       if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
 
@@ -330,23 +350,19 @@
         }
 
         const approximate = !!data.reference_system;
-        if (approximate) {
-          let note = `Distances approximate — calculated from nearest known system: ${data.reference_system} (confidence: ${data.reference_confidence}, error ${data.reference_error_ly})`;
-          if (data.reference_density !== null && data.reference_density !== undefined) {
-            note += ` — ${data.reference_density} known system${data.reference_density === 1 ? "" : "s"} in this sector`;
-            if (data.reference_density < 5) {
-              note += ". Warning: very sparse sector, actual distances may be significantly higher than shown.";
-              reference.style.color = "red";
-            } else if (data.reference_density < 20) {
-              note += ". Sparse sector — treat distances as rough estimates.";
-              reference.style.color = "orange";
-            }
-          }
-          reference.textContent = note;
-        }
 
         document.getElementById("dssa-results-for-text").textContent = `Showing results for: ${data.input_system}`;
         document.getElementById("dssa-timing").textContent = `Search took ${elapsed}s`;
+
+        const dssaConf = approximate ? data.reference_confidence : "exact";
+        const dssaSummary = approximate ? `distances from nearby system '${data.reference_system}' (error ${data.reference_error_ly})` : "known system — exact coordinates";
+        let dssaDetail = null;
+        if (approximate && data.reference_density !== null && data.reference_density !== undefined) {
+          dssaDetail = `${data.reference_density} known system${data.reference_density === 1 ? "" : "s"} in this sector`;
+          if (data.reference_density < 5) dssaDetail += " — Warning: very sparse sector";
+          else if (data.reference_density < 20) dssaDetail += " — Sparse sector";
+        }
+        renderConfidence("dssa-confidence", dssaConf, dssaSummary, dssaDetail);
         data.results.forEach((r, i) => {
           const row = body.insertRow();
           row.insertCell().textContent = i + 1;

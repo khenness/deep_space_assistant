@@ -18,6 +18,10 @@
     #nearby-error, #dssa-error { color: red; margin-top: 16px; }
     #nearby-status, #dssa-status { margin-top: 16px; color: #666; }
     .reference-note { margin-top: 12px; color: #666; font-style: italic; font-size: 0.9em; }
+    .copy-btn { border: 1px solid #ccc; background: #f5f5f5; border-radius: 3px; cursor: pointer; padding: 2px 7px; font-size: 1em; color: #555; vertical-align: middle; margin-left: 5px; }
+    .copy-btn:hover { background: #e0e0e0; color: #111; }
+    .copy-btn.copied { color: green; border-color: green; background: #eaffea; }
+    .system-name { font-weight: bold; }
   </style>
 </head>
 <body>
@@ -159,6 +163,21 @@
     dssaInput.addEventListener("keydown", e => { if (e.key === "Enter") searchDSSA(); });
     poiInput.addEventListener("keydown", e => { if (e.key === "Enter") searchPOI(); });
 
+    function copyBtn(text) {
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.title = "Copy system name";
+      btn.textContent = "⧉";
+      btn.addEventListener("click", () => {
+        navigator.clipboard.writeText(text).then(() => {
+          btn.classList.add("copied");
+          btn.textContent = "✓";
+          setTimeout(() => { btn.classList.remove("copied"); btn.textContent = "⧉"; }, 1500);
+        });
+      });
+      return btn;
+    }
+
     const CONFIDENCE_STYLES = {
       exact:  { bg: '#d4edda', border: '#28a745', text: '#155724' },
       high:   { bg: '#d4edda', border: '#28a745', text: '#155724' },
@@ -166,7 +185,7 @@
       low:    { bg: '#f8d7da', border: '#dc3545', text: '#721c24' },
     };
 
-    function renderConfidence(elId, confidence, summary, detail) {
+    function renderConfidence(elId, confidence, summary, detail, refSystem) {
       const el = document.getElementById(elId);
       if (!confidence) { el.style.display = 'none'; el.innerHTML = ''; return; }
       const s = CONFIDENCE_STYLES[confidence.toLowerCase()] || CONFIDENCE_STYLES.low;
@@ -175,6 +194,12 @@
         font-family:monospace; border-radius:4px;`;
       el.innerHTML = `<strong>Confidence: ${confidence.toUpperCase()}</strong> &mdash; ${summary}`
         + (detail ? `<br><span style="font-size:0.9em;">${detail}</span>` : '');
+      if (refSystem) {
+        const span = el.querySelector('.ref-system-name');
+        if (span) {
+          span.insertAdjacentElement('afterend', copyBtn(refSystem));
+        }
+      }
     }
 
     const tabSearched = { dssa: false, nearby: false, poi: false };
@@ -224,14 +249,21 @@
         document.getElementById("poi-timing").textContent = `Search took ${elapsed}s`;
 
         const poiConf = data.reference_system ? data.reference_confidence : "exact";
-        const poiSummary = data.reference_system ? `distances from ${data.reference_system} (error ${data.reference_error_ly})` : "known system — exact coordinates";
-        renderConfidence("poi-confidence", poiConf, poiSummary, null);
+        const poiSummary = data.reference_system
+          ? `distances from nearby system <span class="ref-system-name system-name">${data.reference_system}</span> (error ${data.reference_error_ly})`
+          : "known system — exact coordinates";
+        renderConfidence("poi-confidence", poiConf, poiSummary, null, data.reference_system || null);
 
         data.results.forEach((r, i) => {
           const row = body.insertRow();
           row.insertCell().textContent = i + 1;
           row.insertCell().textContent = r.name;
-          row.insertCell().textContent = r.system_name;
+          const poiSystemCell = row.insertCell();
+          const poiNameSpan = document.createElement("span");
+          poiNameSpan.className = "system-name";
+          poiNameSpan.textContent = r.system_name;
+          poiSystemCell.appendChild(poiNameSpan);
+          poiSystemCell.appendChild(copyBtn(r.system_name));
           const catCell = row.insertCell();
           catCell.textContent = r.category2 ? `${r.category} / ${r.category2}` : (r.category || "");
           row.insertCell().textContent = r.distance_ly !== null ? r.distance_ly.toLocaleString() + " ly" : "unknown";
@@ -270,7 +302,6 @@
       error.textContent = ""; body.innerHTML = ""; table.style.display = "none";
       document.getElementById("nearby-results-for-text").textContent = "";
       document.getElementById("nearby-timing").textContent = "";
-      document.getElementById("nearby-named-note").style.display = "none";
       renderConfidence("nearby-confidence", null, null);
       if (!system) { error.textContent = "Please enter a system name."; return; }
       status.textContent = "Searching...";
@@ -301,7 +332,12 @@
         data.results.forEach((r, i) => {
           const row = body.insertRow();
           row.insertCell().textContent = i + 1;
-          row.insertCell().textContent = r.name;
+          const nameCell = row.insertCell();
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "system-name";
+          nameSpan.textContent = r.name;
+          nameCell.appendChild(nameSpan);
+          nameCell.appendChild(copyBtn(r.name));
           row.insertCell().textContent = r.match_level;
 
           const confCell = row.insertCell();
@@ -355,20 +391,27 @@
         document.getElementById("dssa-timing").textContent = `Search took ${elapsed}s`;
 
         const dssaConf = approximate ? data.reference_confidence : "exact";
-        const dssaSummary = approximate ? `distances from nearby system '${data.reference_system}' (error ${data.reference_error_ly})` : "known system — exact coordinates";
+        const dssaSummary = approximate
+          ? `distances from nearby system <span class="ref-system-name system-name">${data.reference_system}</span> (error ${data.reference_error_ly})`
+          : "known system — exact coordinates";
         let dssaDetail = null;
         if (approximate && data.reference_density !== null && data.reference_density !== undefined) {
           dssaDetail = `${data.reference_density} known system${data.reference_density === 1 ? "" : "s"} in this sector`;
           if (data.reference_density < 5) dssaDetail += " — Warning: very sparse sector";
           else if (data.reference_density < 20) dssaDetail += " — Sparse sector";
         }
-        renderConfidence("dssa-confidence", dssaConf, dssaSummary, dssaDetail);
+        renderConfidence("dssa-confidence", dssaConf, dssaSummary, dssaDetail, approximate ? data.reference_system : null);
         data.results.forEach((r, i) => {
           const row = body.insertRow();
           row.insertCell().textContent = i + 1;
           row.insertCell().textContent = r.vessel;
           row.insertCell().textContent = r.callsign;
-          row.insertCell().textContent = r.system_name;
+          const dssaSystemCell = row.insertCell();
+          const dssaNameSpan = document.createElement("span");
+          dssaNameSpan.className = "system-name";
+          dssaNameSpan.textContent = r.system_name;
+          dssaSystemCell.appendChild(dssaNameSpan);
+          dssaSystemCell.appendChild(copyBtn(r.system_name));
           row.insertCell().textContent = r.region;
           row.insertCell().textContent = r.distance_ly !== null
             ? (approximate ? "~" : "") + r.distance_ly.toLocaleString() + " ly"

@@ -10,12 +10,16 @@ from .models import DSSACarrier, DSSAResponse, NearbyResponse, NearbySystem, POI
 from .search import find_nearby, find_nearest_dssa, find_nearby_poi
 
 FRONTEND_DIR = Path(__file__).resolve().parents[1] / "frontend"
+IMAGES_DIR = Path(__file__).resolve().parents[1] / "images"
 
 app = FastAPI(
     title="Deep Space Assistant",
     description="Find known EDSM systems near an undiscovered Elite Dangerous system.",
     version="0.1.0",
 )
+
+
+app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
 
 
 @app.get("/nearby", response_model=NearbyResponse)
